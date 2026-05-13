@@ -1,0 +1,6 @@
+.xml
+data/*
+data/
+output/
+.venv
+.env

@@ -1,0 +1,7 @@
+pyproject.toml
+src/opera_seria_harmonic_analysis.egg-info/PKG-INFO
+src/opera_seria_harmonic_analysis.egg-info/SOURCES.txt
+src/opera_seria_harmonic_analysis.egg-info/dependency_links.txt
+src/opera_seria_harmonic_analysis.egg-info/top_level.txt
+src/scripts/__init__.py
+src/scripts/build_database.py
