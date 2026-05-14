@@ -2,8 +2,8 @@ import math
 from os import listdir
 import os
 from os.path import isfile, join
-from src.types.models import AriaHeaderModel, AriaMetaDataModel
-from src.paths import DATA_DIR, OUTPUT_DIR
+from src.corpus.models import AriaHeaderModel, AriaMetaDataModel
+from src.paths import ARIA_INDEX_PATH, MSCX_FOLDER_DIR
 import re, json
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -11,7 +11,7 @@ from dataclasses import asdict
 from pydantic import TypeAdapter
 
 def build_index (index_path: Path):
-    folder_path = DATA_DIR / "musescore" / "didone"
+    folder_path = MSCX_FOLDER_DIR
     music_files = [f for f in listdir(folder_path) if isfile(join(folder_path, f))]
 
     DIDONE_FILE_NAME_PAT = re.compile(
@@ -170,3 +170,28 @@ def build_index (index_path: Path):
             f.write(b + b"\n")
 
         print(f'Wrote aria index at { index_path } with a total of {len(arias)} arias at around { math.ceil(os.path.getsize(index_path) / 1024) } kB.')
+
+
+def load_aria_index() -> list[AriaHeaderModel]:
+    arias: list[AriaHeaderModel] = []
+    with ARIA_INDEX_PATH.open("r", encoding="utf8") as f:
+        for line_no, line in enumerate(f, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                arias.append(AriaHeaderModel.model_validate_json(line))
+            except Exception as e:
+                print(f"Skipping invalid JSONL line {line_no}: {e}")
+    return arias
+
+
+def create_or_load_aria_index () -> list[AriaHeaderModel]:
+    # generate aria_index if not already existing
+    if not ARIA_INDEX_PATH.is_file():
+        print(f'No aria index found. Generating new aria index at { ARIA_INDEX_PATH }.')
+        build_index(ARIA_INDEX_PATH)
+    else:
+        print(f'Using existing aria index at {ARIA_INDEX_PATH}.')
+    
+    return load_aria_index()

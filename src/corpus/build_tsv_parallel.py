@@ -1,36 +1,14 @@
 import multiprocessing as mp
 from pathlib import Path
 import re, warnings, ms3, signal
-from paths import DATA_DIR, OUTPUT_DIR
-from src.types.models import AriaHeaderModel
-from src.scripts.build_index import build_index
+
+from src.paths import ANALYSIS_OUT_DIR, MS3_EXPANDED_DIR, MS3_LABELS_DIR, MS3_MEASURES_DIR, MSCX_FOLDER_DIR
+from src.corpus.build_aria_index import create_or_load_aria_index, load_aria_index
 from tqdm import tqdm
 from functools import partial
 
-# variables
-mscx_folder_path = DATA_DIR / "musescore" / "didone"
-analysis_out_dir = OUTPUT_DIR / "ms3-analysis"
-aria_index_path = OUTPUT_DIR / "aria_index.jsonl"
 
-
-
-def load_aria_index(path: Path) -> list[AriaHeaderModel]:
-    arias: list[AriaHeaderModel] = []
-    with path.open("r", encoding="utf8") as f:
-        for line_no, line in enumerate(f, start=1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                arias.append(AriaHeaderModel.model_validate_json(line))
-            except Exception as e:
-                print(f"Skipping invalid JSONL line {line_no}: {e}")
-    return arias
-
-
-
-
-def process_aria(file_name: str, mscx_folder_path: Path, analysis_out_dir: Path) -> tuple[str, str, str]:
+def process_aria(file_name: str) -> tuple[str, str, str]:
     global worker_stop_event
 
     if worker_stop_event is not None and worker_stop_event.is_set():
@@ -48,17 +26,15 @@ def process_aria(file_name: str, mscx_folder_path: Path, analysis_out_dir: Path)
     )
 
 
-    labels_dir_name = "labels"
-    expanded_dir_name = "expanded"
-    measures_dir_name = "measures"
+    
     #notes_dir_name = "notes"
 
-    mscx_path = Path(mscx_folder_path) / file_name
+    mscx_path = Path(MSCX_FOLDER_DIR) / file_name
 
     expected_files = [
-        analysis_out_dir / labels_dir_name / f"{mscx_path.stem}.labels.tsv",
-        analysis_out_dir / expanded_dir_name / f"{mscx_path.stem}.harmonies.tsv",
-        analysis_out_dir / measures_dir_name / f"{mscx_path.stem}.measures.tsv",
+        MS3_LABELS_DIR / f"{mscx_path.stem}.labels.tsv",
+        MS3_EXPANDED_DIR / f"{mscx_path.stem}.harmonies.tsv",
+        MS3_MEASURES_DIR / f"{mscx_path.stem}.measures.tsv",
         #analysis_out_dir / notes_dir_name / f"{mscx_path.stem}.notes.tsv",
     ]
 
@@ -81,10 +57,10 @@ def process_aria(file_name: str, mscx_folder_path: Path, analysis_out_dir: Path)
             return ("stopped", file_name, "stop requested before start")
 
         p.store_extracted_facets(
-            root_dir=str(analysis_out_dir),
-            labels_folder=labels_dir_name,
-            expanded_folder=expanded_dir_name,
-            measures_folder=measures_dir_name,
+            root_dir=str(ANALYSIS_OUT_DIR),
+            labels_folder=str(MS3_LABELS_DIR),
+            expanded_folder=str(MS3_EXPANDED_DIR),
+            measures_folder=str(MS3_MEASURES_DIR),
             #notes_folder=notes_dir_name,
             simulate=False,
             frictionless=False,
@@ -112,15 +88,8 @@ if __name__ == "__main__":
     stop_event = mp.Event()
     signal.signal(signal.SIGINT, main_shutdown)
 
-    # generate aria_index if not already existing
-    if not aria_index_path.is_file():
-        print(f'No aria index found. Generating new aria index at { aria_index_path }.')
-        build_index(aria_index_path)
-    else:
-        print(f'Using existing aria index at {aria_index_path}.')
-
     # actually parse arias
-    arias = load_aria_index(aria_index_path)
+    arias = create_or_load_aria_index()
     done_arias = []
     missing_files = []
     failed_files = []
@@ -128,11 +97,7 @@ if __name__ == "__main__":
     file_names = [aria.file_name for aria in arias if aria.file_name]
     with mp.Pool(processes=6, initializer=init_worker, maxtasksperchild=10, initargs=(stop_event,)) as pool:
         try:
-            worker_fn = partial(
-                process_aria,
-                mscx_folder_path=mscx_folder_path,
-                analysis_out_dir=analysis_out_dir,
-            )
+            worker_fn = partial(process_aria)
             for status, file_name, msg in tqdm(pool.imap_unordered(worker_fn, file_names, chunksize=1),total=len(file_names),desc="Parsing and storing arias"):
                 if status == "done":
                     done_arias.append(file_name)
