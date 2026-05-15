@@ -41,15 +41,18 @@ def get_aria_analysis_path ( aria_file_name: str, type: Literal["labels", "expan
         case "measures":
             return MS3_MEASURES_DIR / (Path(aria_file_name).stem + ".measures.tsv")
 
+# raw
 MSCX_FOLDER_DIR = RAW_DIR / "musescore" / "didone"
+EMOTION_TABLE_PATH = RAW_DIR / "Passions.xlsx"
+
+# intermediate
 ANALYSIS_OUT_DIR = INTERIM_DIR / "ms3-analysis"
 ARIA_INDEX_PATH = INTERIM_DIR / "aria_index.jsonl"
 ARIA_PERIOD_MAP_PATH = INTERIM_DIR / "aria_period_map.jsonl"
-
-EMOTION_TABLE_PATH = RAW_DIR / "Passions.xlsx"
-
+BASIC_PASSION_OF_ARIA_MAP_PATH = INTERIM_DIR / "basic_passion_of_aria_map.json"
 
 
 # Visualizations
 OUTPUT_FIGURES_DIR = OUTPUT_DIR / "figures"
+OUTPUT_FIGURES_INTERACTIVE_DIR = OUTPUT_FIGURES_DIR / "interactive"
 OUTPUT_TABLES_DIR = OUTPUT_DIR / "tables"
