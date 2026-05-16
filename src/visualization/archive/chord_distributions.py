@@ -2,10 +2,10 @@ from typing import Callable, Mapping
 
 from src.visualization.util import get_colors_for_groups, make_project_colors, make_sequential_colors
 
-from src.analysis.chord_distribution_depending_on_year import get_chord_distribution_by_year, get_chord_distribution_by_year_periods
+from analysis.chord_distribution.chord_distribution_depending_on_year import get_chord_distribution_by_year, get_chord_distribution_by_year_periods
 from paths import OUTPUT_FIGURES_DIR
 
-from src.analysis.chord_distribution_depending_on_emotions import get_chord_distribution_by_emotion, global_top_n_chords
+from analysis.chord_distribution.chord_distribution_depending_on_emotions import get_chord_distribution_by_emotion, global_top_n_chords
 from src.analysis.types import ChordDistribution
 import matplotlib.pyplot as plt
 import scienceplots # needed for plt.style

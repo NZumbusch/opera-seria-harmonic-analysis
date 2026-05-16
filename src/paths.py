@@ -50,7 +50,7 @@ ANALYSIS_OUT_DIR = INTERIM_DIR / "ms3-analysis"
 ARIA_INDEX_PATH = INTERIM_DIR / "aria_index.jsonl"
 ARIA_PERIOD_MAP_PATH = INTERIM_DIR / "aria_period_map.jsonl"
 BASIC_PASSION_OF_ARIA_MAP_PATH = INTERIM_DIR / "basic_passion_of_aria_map.json"
-
+ARIA_CHORD_LOOKUP_DIR = INTERIM_DIR / "aria-chord-lookup"
 
 # Visualizations
 OUTPUT_FIGURES_DIR = OUTPUT_DIR / "figures"

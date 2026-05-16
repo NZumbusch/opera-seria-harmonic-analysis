@@ -6,7 +6,7 @@ import pandas as pd
 from pydantic import BaseModel
 from tqdm import tqdm
 
-from src.analysis.util import CachedAriaChordData, get_aria_chord_count_lookup, get_aria_mode_from_tsv
+from src.analysis.util import CachedAriaChordData, create_aria_chord_count_lookup, get_aria_mode_from_tsv
 from src.corpus.build_aria_index import create_or_load_aria_index
 from src.paths import get_aria_analysis_path
 
@@ -23,7 +23,7 @@ def get_chord_distribution_of_year (
         year: int, 
         is_major: bool | None = None
 ) -> TimeframeChordData:
-    lookup: dict[int, CachedAriaChordData] = get_aria_chord_count_lookup(min_year=year, max_year=year)
+    lookup: dict[int, CachedAriaChordData] = create_aria_chord_count_lookup(min_year=year, max_year=year)
 
     chord_counts: dict[str, int] = defaultdict(lambda: 0)
     number = 0
@@ -48,7 +48,7 @@ def get_chord_distribution_by_sliding_window(
     min_year: int = 1700,
     max_year: int = 1850,
 ) -> dict[str, TimeframeChordData]:
-    lookup = get_aria_chord_count_lookup(
+    lookup = create_aria_chord_count_lookup(
         min_year=min_year,
         max_year=max_year,
     )

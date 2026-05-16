@@ -186,12 +186,12 @@ def load_aria_index() -> list[AriaHeaderModel]:
     return arias
 
 
-def create_or_load_aria_index () -> list[AriaHeaderModel]:
+def create_or_load_aria_index (hide_lookup_info: bool = False) -> list[AriaHeaderModel]:
     # generate aria_index if not already existing
     if not ARIA_INDEX_PATH.is_file():
-        print(f'No aria index found. Generating new aria index at { ARIA_INDEX_PATH }.')
+        if not hide_lookup_info: print(f'No aria index found. Generating new aria index at { ARIA_INDEX_PATH }.')
         build_index(ARIA_INDEX_PATH)
     else:
-        print(f'Using existing aria index at {ARIA_INDEX_PATH}.')
+        if not hide_lookup_info: print(f'Using existing aria index at {ARIA_INDEX_PATH}.')
     
     return load_aria_index()

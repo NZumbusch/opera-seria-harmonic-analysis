@@ -4,7 +4,7 @@ import re
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 
-from src.analysis.chord_distribution_rolling_time_windows import (
+from analysis.chord_distribution.chord_distribution_rolling_time_windows import (
     get_chord_distribution_by_sliding_window,
 )
 from paths import OUTPUT_FIGURES_DIR
@@ -16,7 +16,7 @@ import re
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 
-from src.analysis.chord_distribution_rolling_time_windows import (
+from analysis.chord_distribution.chord_distribution_rolling_time_windows import (
     get_chord_distribution_by_sliding_window,
 )
 from paths import OUTPUT_FIGURES_DIR

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import plotly.graph_objects as go
 
-from src.analysis.chord_distribution_rolling_time_windows import (
+from analysis.chord_distribution.chord_distribution_rolling_time_windows import (
     export_public_chord_distribution_windows,
 )
 from paths import OUTPUT_FIGURES_INTERACTIVE_DIR
