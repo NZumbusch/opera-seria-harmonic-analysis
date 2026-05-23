@@ -1,8 +1,14 @@
+from collections.abc import Callable
+import json
 from pathlib import Path
-from src.analysis.chord_distribution.chord_trend_grouping import find_trend_groupings_fpca, get_chord_development_matrix
+
+from src.analysis.util import percentage_signal_change_normalization, z_score_normalization
+from src.analysis.chord_distribution.chord_trend_grouping import find_trend_groupings_fpca
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 from src.paths import OUTPUT_FIGURES_DIR
+
 
 
 def draw_fpca_clusters_timeline(
@@ -15,15 +21,24 @@ def draw_fpca_clusters_timeline(
     n_components: int = 2,
     n_clusters: int = 4,
     output_dir: Path = OUTPUT_FIGURES_DIR,
-    outlier_percentile: float = 85.0
+    outlier_percentile: float = 85.0,
+    normalization_function: Callable[[npt.NDArray], npt.NDArray] | None = z_score_normalization,
+    outlier_grouping: bool = False,
+    normalization_name: str | None = None
 ) -> Path:    
+    function_arguments = locals()
     chord_groups, eval_years, development_matrix, chords = find_trend_groupings_fpca(
-        min_year=min_year, max_year=max_year, 
+        min_year=min_year, 
+        max_year=max_year, 
         timeline_resolution=timeline_resolution, 
         min_percentage_of_arias_with_chord=min_percentage_of_arias_with_chord, 
-        is_major=is_major, frac=frac, 
-        n_components=n_components, n_clusters=n_clusters,
-        outlier_percentile=outlier_percentile
+        is_major=is_major, 
+        frac=frac, 
+        n_components=n_components, 
+        n_clusters=n_clusters,
+        outlier_percentile=outlier_percentile,
+        normalization_function=normalization_function,
+        outlier_grouping=outlier_grouping,
     )
 
     # dynamic grid (e.g. 2x2 for 4 clusters)
@@ -65,7 +80,7 @@ def draw_fpca_clusters_timeline(
             )
             
         # calculate and plot the average master trend for all clusters except the last one (outliers)
-        if iter < len(chord_groups) - 1:
+        if not outlier_grouping or iter < len(chord_groups) - 1:
             cluster_mean_profile = np.mean(cluster_curves, axis=0)
             ax.plot(
                 eval_years, 
@@ -87,6 +102,10 @@ def draw_fpca_clusters_timeline(
         sample_string = ", ".join(cluster_chords[:sample_size]) + ("..." if len(cluster_chords) > sample_size else "")
         ax.legend(title=f"Sample: {sample_string}", loc="upper right", fontsize=8, frameon=True, facecolor="white", edgecolor="none")
 
+        print(chord_groups)
+
+    
+
     # label shared structural axes
     for col in range(ncols):
         axes[-(col+1)].set_xlabel("Year")
@@ -94,11 +113,15 @@ def draw_fpca_clusters_timeline(
         axes[row * ncols].set_ylabel("Standardized Frequency (Z-Score)")
 
     fig.suptitle(f"FPCA Historical Trend Groupings ({mode_label})", fontsize=14, fontweight="bold", y=0.98)
-    
+
+    normalization_text = ""
+    if (normalization_name):
+        normalization_text = f"| Normalization: {normalization_name} "
+
     fig.text(
         0.5,
         0.01,
-        f"LOESS frac: {frac} | Normalization: Z-Score (Shape Matching Only) | Min Presence: {min_percentage_of_arias_with_chord*100}%",
+        f"LOESS frac: {frac} {normalization_text}| Min Presence: {min_percentage_of_arias_with_chord*100}%",
         ha="center",
         fontsize=9,
         style="italic",
@@ -108,11 +131,17 @@ def draw_fpca_clusters_timeline(
     for j in range(n_clusters, len(axes)):
         fig.delaxes(axes[j])
 
+    # create metadata saving function arguments and chord_groups
+    metadata = {
+        "arguments": json.dumps(function_arguments, default=str),
+        "chord_groups": json.dumps(chord_groups, default=str)
+    }
+
     # save fig
     output_path = output_dir / f"fpca_clusters_{mode_label.replace(' ', '_')}.png"
     output_dir.mkdir(parents=True, exist_ok=True)
     fig.tight_layout(rect=(0, 0.03, 1, 0.95))
-    fig.savefig(output_path, dpi=300, bbox_inches="tight")
+    fig.savefig(output_path, dpi=300, bbox_inches="tight", metadata=metadata)
     plt.close(fig)
 
     return output_path
@@ -121,9 +150,12 @@ if __name__ == "__main__":
     draw_fpca_clusters_timeline(
         min_year=1700,
         max_year=1820,
-        min_percentage_of_arias_with_chord=0.1,
-        n_clusters=4,
+        min_percentage_of_arias_with_chord=0.15,
+        n_clusters=6,
         frac=0.35,
         is_major=True,
-        outlier_percentile=75.0
+        outlier_percentile=90.0,
+        outlier_grouping=False,
+        normalization_function=percentage_signal_change_normalization,
+        normalization_name="Percentage signal change"
     )

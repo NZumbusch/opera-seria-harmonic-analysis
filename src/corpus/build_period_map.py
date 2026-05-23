@@ -36,7 +36,7 @@ def get_arias_by_year_period(n_periods: int = 8) -> dict[str, list[AriaHeaderMod
 
         start_year = chunk[0].year
         end_year = chunk[-1].year
-        label = f"{start_year}-{end_year} (n={len(chunk)})"
+        label = f"{start_year}-{end_year}"
         out[label] = chunk
 
     return out
@@ -53,6 +53,7 @@ def save_aria_period_map() -> None:
                     "file_name": aria.file_name,
                     "year": aria.year,
                     "period": label,
+                    "n": len(arias)
                 }
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
 

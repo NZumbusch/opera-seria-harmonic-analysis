@@ -3,13 +3,14 @@ from collections import defaultdict
 from tqdm import tqdm
 
 from src.analysis.chord_distribution.chord_usage_timeline_loess import get_chord_group_loess_series
-from src.analysis.util import create_or_get_aria_chord_lookup
+from src.analysis.util import create_or_get_aria_chord_lookup, z_score_normalization
 import numpy as np
 import numpy.typing as npt
 import numpy as np
 import skfda
 from sklearn.cluster import KMeans as SklearnKMeans
 from skfda.preprocessing.dim_reduction import FPCA
+from collections.abc import Callable
 
 
 def get_chord_development_matrix (
@@ -19,7 +20,8 @@ def get_chord_development_matrix (
     min_percentage_of_arias_with_chord: float = 0.2,
     is_major: None | bool = None,
     frac: float = 0.35,
-    hide_lookup_info: bool = True
+    hide_lookup_info: bool = True,
+    normalization_function: Callable[[npt.NDArray], npt.NDArray] | None = z_score_normalization
 ) -> tuple[list[str], npt.NDArray, npt.NDArray]:
     if min_percentage_of_arias_with_chord < 0 or min_percentage_of_arias_with_chord > 1: raise ValueError("min percentage of arias with chords has to be between 0 and 1")
 
@@ -65,10 +67,9 @@ def get_chord_development_matrix (
         ).smoothed_y
 
 
-        # Z-Score normalization
-        mean = np.mean(y)
-        std_dv = np.std(y)
-        y = (y - mean) / (std_dv if std_dv > 0 else 1.0)
+        # normalization
+        if normalization_function:
+            y = normalization_function(y)
 
         rows.append(y)
 
@@ -87,10 +88,11 @@ def find_trend_groupings_fpca (
     frac: float = 0.35,
     n_components: int = 2,
     n_clusters: int = 4,
-    outlier_percentile: float = 85.0
+    outlier_percentile: float = 85.0,
+    normalization_function: Callable[[npt.NDArray], npt.NDArray] | None = z_score_normalization,
+    outlier_grouping: bool = False
 ):
-    chords, eval_years, development_matrix = get_chord_development_matrix(min_year=min_year, max_year=max_year, timeline_resolution=timeline_resolution, min_percentage_of_arias_with_chord=min_percentage_of_arias_with_chord, is_major=is_major, frac=frac)
-
+    chords, eval_years, development_matrix = get_chord_development_matrix(min_year=min_year, max_year=max_year, timeline_resolution=timeline_resolution, min_percentage_of_arias_with_chord=min_percentage_of_arias_with_chord, is_major=is_major, frac=frac, normalization_function=normalization_function)
 
     fd = skfda.FDataGrid(data_matrix=development_matrix, grid_points=eval_years)
     fpca = FPCA(n_components=n_components)
@@ -99,29 +101,37 @@ def find_trend_groupings_fpca (
     # (n_chords, n_components)
     scores_matrix = fpca.transform(fd)
     
-    # pass 1, initial rough clustering
-    initial_kmeans = SklearnKMeans(n_clusters=n_clusters - 1, random_state=42, n_init='auto')
-    initial_labels = initial_kmeans.fit_predict(scores_matrix)
-    
-    # calculate distances to find outlier
-    initial_centers = initial_kmeans.cluster_centers_
-    distances = np.sqrt(np.sum((scores_matrix - initial_centers[initial_labels]) ** 2, axis=1))
-    cutoff_distance = np.percentile(distances, outlier_percentile)
-    
-    # split outliers out of dataset
-    clean_mask = distances <= cutoff_distance
-    clean_scores = scores_matrix[clean_mask]
-    clean_chords = [c for idx, c in enumerate(chords) if clean_mask[idx]]
-    misfit_chords = [c for idx, c in enumerate(chords) if not clean_mask[idx]]
-    
-    # rerun k means on dataset without outliers
-    final_kmeans = SklearnKMeans(n_clusters=n_clusters - 1, random_state=42, n_init='auto')
-    final_labels = final_kmeans.fit_predict(clean_scores)
-
     chord_groups = {i: [] for i in range(n_clusters)}
-    for name, label in zip(clean_chords, final_labels):
-        chord_groups[label].append(name)
-    chord_groups[n_clusters - 1] = misfit_chords
+    if outlier_grouping:
+        # pass 1, initial rough clustering
+        initial_kmeans = SklearnKMeans(n_clusters=n_clusters - 1, random_state=42, n_init='auto')
+        initial_labels = initial_kmeans.fit_predict(scores_matrix)
+        
+        # calculate distances to find outlier
+        initial_centers = initial_kmeans.cluster_centers_
+        distances = np.sqrt(np.sum((scores_matrix - initial_centers[initial_labels]) ** 2, axis=1))
+        cutoff_distance = np.percentile(distances, outlier_percentile)
+        
+        # split outliers out of dataset
+        clean_mask = distances <= cutoff_distance
+        clean_scores = scores_matrix[clean_mask]
+        clean_chords = [c for idx, c in enumerate(chords) if clean_mask[idx]]
+        misfit_chords = [c for idx, c in enumerate(chords) if not clean_mask[idx]]
+        
+        # rerun k means on dataset without outliers
+        final_kmeans = SklearnKMeans(n_clusters=n_clusters - 1, random_state=42, n_init='auto')
+        final_labels = final_kmeans.fit_predict(clean_scores)
+
+        
+        for name, label in zip(clean_chords, final_labels):
+            chord_groups[label].append(name)
+        chord_groups[n_clusters - 1] = misfit_chords
+    else:
+        kmeans = SklearnKMeans(n_clusters=n_clusters, random_state=42, n_init='auto')
+        labels = kmeans.fit_predict(scores_matrix)
+
+        for name, label in zip(chords, labels):
+            chord_groups[label].append(name)
 
     print(f"Explained variance ratio by component: {fpca.explained_variance_ratio_}")
     

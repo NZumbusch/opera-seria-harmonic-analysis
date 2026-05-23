@@ -2,7 +2,8 @@ from collections import Counter
 import json
 from pathlib import Path
 from typing import TypedDict
-
+import numpy as np
+import numpy.typing as npt
 from pydantic import BaseModel
 from tqdm import tqdm
 
@@ -118,3 +119,18 @@ def create_or_get_aria_chord_lookup (min_year: int, max_year: int, hide_lookup_i
             json.dump(serializable_lookup, f, ensure_ascii=False, indent=2)
         
         return lookup
+    
+
+
+def z_score_normalization (y: npt.NDArray, epsilon: float=0) -> npt.NDArray:
+    mean = np.mean(y)
+    std_dv = np.std(y) + epsilon
+    return (y - mean) / (std_dv if std_dv > 0 else 1.0)
+    
+def percentage_signal_change_normalization (y: npt.NDArray) -> npt.NDArray:
+    mean = np.mean(y)
+    return (y - mean) / (mean if mean > 0 else 1.0)
+
+
+def log_scaling (y: npt.NDArray) -> npt.NDArray:
+    return np.log(np.clip(y, a_min=0.0, a_max=None))

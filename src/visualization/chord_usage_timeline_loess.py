@@ -66,7 +66,7 @@ def draw_chord_group_loess_timeline(
         upper_bound,
         color="#1f4e79",
         alpha=0.15,
-        label=f"{100 - 2 * bootstrap_cutoff_percentile} Bootstrap Confidence Interval",
+        label=f"{100 - 2 * bootstrap_cutoff_percentile}% Bootstrap Confidence Interval",
     )
 
     ax.plot(
@@ -111,10 +111,10 @@ if __name__ == "__main__":
     CHORD_GROUPS: dict[str, list[str]] = {
         "galant_predominants": ["ii6", "ii65", "IV", "IV6", "V/V", "vii°/V"],
         "early_classical_cadential": ["I64"],
-        "dominant_family": ["V", "V7", "vii°", "vii°7"],
+        "dominant_family": ["V", "V7", "vii°", "vii°7"]
     }
     draw_chord_group_loess_timeline(
-        chord_group=CHORD_GROUPS["early_classical_cadential"],
+        chord_group=['IV6', 'I(4)', 'ii7', 'ii%65', 'V7/V', 'vi7', '#viio7', 'V(4)'],
         chord_group_name="Early classical cadential chords",
         frac=0.35,
         is_major=True
