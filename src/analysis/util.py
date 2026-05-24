@@ -1,7 +1,8 @@
 from collections import Counter
 import json
 from pathlib import Path
-from typing import TypedDict
+import re
+from typing import Hashable, TypedDict
 import numpy as np
 import numpy.typing as npt
 from pydantic import BaseModel
@@ -92,6 +93,29 @@ def create_aria_chord_count_lookup(
 
     return lookup
 
+def parse_to_float(value: str) -> float:
+    """Converts a string (e.g., '356/2' or '0.5') to a float."""
+    if '/' in value:
+        numerator, denominator = value.split('/')
+        return float(numerator) / float(denominator)
+    return float(value)
+
+
+
+def get_chord_id_at_quarter_beat(file_name: str  | Path, quarter_beat: float) -> Hashable:
+    path = get_aria_analysis_path(str(file_name), "expanded")
+    if not path.is_file():
+        raise ValueError(f"No aria exists at {file_name}")
+
+    df = pd.read_csv(path, sep="\t", usecols=["quarterbeats_all_endings"])
+    for idx, row in df.iterrows():
+        if parse_to_float(row["quarterbeats_all_endings"]) >= quarter_beat:
+            return idx
+    
+    return df.index[-1]
+
+
+
 
 
 def create_or_get_aria_chord_lookup (min_year: int, max_year: int, hide_lookup_info: bool = True) -> dict[int, CachedAriaChordData]:
@@ -134,3 +158,40 @@ def percentage_signal_change_normalization (y: npt.NDArray) -> npt.NDArray:
 
 def log_scaling (y: npt.NDArray) -> npt.NDArray:
     return np.log(np.clip(y, a_min=0.0, a_max=None))
+
+
+PITCH_CLASSES = {
+    'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3,
+    'E': 4, 'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8,
+    'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11
+}
+
+LOCAL_KEY_MAJOR_OFFSETS = {'I': 0, 'II': 2, 'III': 4, 'IV': 5, 'V': 7, 'VI': 9, 'VII': 11}
+LOCAL_KEY_MINOR_OFFSETS = {'I': 0, 'II': 2, 'III': 3, 'IV': 5, 'V': 7, 'VI': 8, 'VII': 10}
+
+def get_localkey_midi(global_key: str, is_minor: bool, local_key_numeral: str) -> int:
+    """
+    Calculates the MIDI pitch class (0-11) of the local key.
+    """
+    if not local_key_numeral or local_key_numeral.upper() == 'I':
+        return PITCH_CLASSES.get(global_key.upper(), 0)
+
+    # Parse the optional accidental (b or #) and the Roman numeral
+    match = re.match(r'(b|#)?([ivIV]+)', local_key_numeral)
+    if not match:
+        return PITCH_CLASSES.get(global_key.upper(), 0)
+
+    accidental, numeral = match.groups()
+    numeral_upper = numeral.upper()
+
+    # Get the base diatonic offset based on global mode
+    offsets = LOCAL_KEY_MINOR_OFFSETS if is_minor else LOCAL_KEY_MAJOR_OFFSETS
+    interval = offsets.get(numeral_upper, 0)
+
+    if accidental == 'b':
+        interval -= 1
+    elif accidental == '#':
+        interval += 1
+
+    global_midi = PITCH_CLASSES.get(global_key.upper(), 0)
+    return (global_midi + interval) % 12

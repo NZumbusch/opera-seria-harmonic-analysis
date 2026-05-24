@@ -44,7 +44,7 @@ class PathNode(Generic[T]):
 
 
 
-def skipgram (input: Iterator[T], k: float, n: int, c: Callable[[T, T], float], p: Callable[[PathNode], bool] = lambda x: True) -> Iterator[Skipgram]:
+def skipgram (input: Iterator[T], k: float, n: int, c: Callable[[T, T], float], p: Callable[[PathNode], bool] | None = None) -> Iterator[Skipgram]:
     """General skipgram implementation after Finkensiep, Neuwirth, Rohrmeier 2018.
 
     Args:
@@ -80,7 +80,7 @@ def skipgram (input: Iterator[T], k: float, n: int, c: Callable[[T, T], float], 
 
         # add new skipgrams / add them to output if complete
         for event_id, tb, node in ext:
-            if not p(node): continue
+            if p and not p(node): continue
 
             if node.length == n:
                 sg = Skipgram(cost=node.cost, contents=node.to_list())

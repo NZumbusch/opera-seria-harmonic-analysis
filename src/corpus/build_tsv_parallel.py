@@ -1,8 +1,9 @@
 import multiprocessing as mp
 from pathlib import Path
+from typing import Literal
 import re, warnings, ms3, signal
 
-from src.paths import ANALYSIS_OUT_DIR, MS3_EXPANDED_DIR, MS3_LABELS_DIR, MS3_MEASURES_DIR, MSCX_FOLDER_DIR
+from src.paths import ANALYSIS_OUT_DIR, MS3_EXPANDED_DIR, MS3_LABELS_DIR, MS3_MEASURES_DIR, MS3_NOTES_DIR, MSCX_FOLDER_DIR, get_aria_analysis_path
 from src.corpus.build_aria_index import create_or_load_aria_index, load_aria_index
 from tqdm import tqdm
 from functools import partial
@@ -27,16 +28,10 @@ def process_aria(file_name: str) -> tuple[str, str, str]:
 
 
     
-    #notes_dir_name = "notes"
-
     mscx_path = Path(MSCX_FOLDER_DIR) / file_name
 
-    expected_files = [
-        MS3_LABELS_DIR / f"{mscx_path.stem}.labels.tsv",
-        MS3_EXPANDED_DIR / f"{mscx_path.stem}.harmonies.tsv",
-        MS3_MEASURES_DIR / f"{mscx_path.stem}.measures.tsv",
-        #analysis_out_dir / notes_dir_name / f"{mscx_path.stem}.notes.tsv",
-    ]
+    literals: list[Literal['labels', 'expanded', 'measures', 'notes']] = ["notes", "labels", "expanded", "measures"]
+    expected_files = [ get_aria_analysis_path(str(mscx_path), type=t) for t in literals ]
 
     if all(path.is_file() for path in expected_files):
         return ("skipped", file_name, "already done")
@@ -61,7 +56,7 @@ def process_aria(file_name: str) -> tuple[str, str, str]:
             labels_folder=str(MS3_LABELS_DIR),
             expanded_folder=str(MS3_EXPANDED_DIR),
             measures_folder=str(MS3_MEASURES_DIR),
-            #notes_folder=notes_dir_name,
+            notes_folder=str(MS3_NOTES_DIR),
             simulate=False,
             frictionless=False,
         )

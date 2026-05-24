@@ -32,14 +32,25 @@ MS3_ANALYSIS_DIR = INTERIM_DIR / "ms3-analysis"
 MS3_LABELS_DIR = MS3_ANALYSIS_DIR / "labels"
 MS3_EXPANDED_DIR = MS3_ANALYSIS_DIR / "expanded"
 MS3_MEASURES_DIR = MS3_ANALYSIS_DIR / "measures"
-def get_aria_analysis_path ( aria_file_name: str, type: Literal["labels", "expanded", "measures"] = "labels" ):
+MS3_NOTES_DIR = MS3_ANALYSIS_DIR / "notes"
+
+NOTES_GROUPED_DIR = INTERIM_DIR / "notes-grouped"
+def get_aria_analysis_path ( aria_file_name: str, type: Literal["labels", "expanded", "measures", "notes", "notes-grouped"] = "labels" ):
+    cleaned = Path(aria_file_name).name.replace(".mscx", "")
     match type:
         case "labels":
-            return MS3_LABELS_DIR / (Path(aria_file_name).stem + ".labels.tsv")
+            return MS3_LABELS_DIR / (cleaned + ".labels.tsv")
         case "expanded":
-            return MS3_EXPANDED_DIR / (Path(aria_file_name).stem + ".harmonies.tsv")
+            return MS3_EXPANDED_DIR / (cleaned + ".harmonies.tsv")
         case "measures":
-            return MS3_MEASURES_DIR / (Path(aria_file_name).stem + ".measures.tsv")
+            return MS3_MEASURES_DIR / (cleaned + ".measures.tsv")
+        case "notes":
+            return MS3_NOTES_DIR / (cleaned + ".notes.tsv")
+        case "notes-grouped":
+            return NOTES_GROUPED_DIR / (cleaned + ".tsv")
+
+
+
 
 # raw
 MSCX_FOLDER_DIR = RAW_DIR / "musescore" / "didone"
