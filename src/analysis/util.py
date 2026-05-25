@@ -1,4 +1,6 @@
 from collections import Counter
+import csv
+from fractions import Fraction
 import json
 from pathlib import Path
 import re
@@ -165,6 +167,7 @@ PITCH_CLASSES = {
     'E': 4, 'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8,
     'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11
 }
+INT_TO_NOTE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
 LOCAL_KEY_MAJOR_OFFSETS = {'I': 0, 'II': 2, 'III': 4, 'IV': 5, 'V': 7, 'VI': 9, 'VII': 11}
 LOCAL_KEY_MINOR_OFFSETS = {'I': 0, 'II': 2, 'III': 3, 'IV': 5, 'V': 7, 'VI': 8, 'VII': 10}
@@ -195,3 +198,26 @@ def get_localkey_midi(global_key: str, is_minor: bool, local_key_numeral: str) -
 
     global_midi = PITCH_CLASSES.get(global_key.upper(), 0)
     return (global_midi + interval) % 12
+
+
+
+def get_aria_total_duration(file_name: str) -> float:
+    measures_path = get_aria_analysis_path(file_name, "measures")
+    if not measures_path.exists():
+        return 0.0
+    
+    with open(measures_path, mode='r', encoding='utf-8') as f:
+        # Use DictReader to locate the 'quarterbeats' column
+        reader = csv.DictReader(f, delimiter='\t')
+        rows = list(reader)
+        if not rows:
+            return 0.0
+        
+        last_row = rows[-1]
+        raw_qb = last_row.get("quarterbeats", "0")
+        
+        # Handle fractions like "169/2" or simple floats
+        try:
+            return float(Fraction(raw_qb)) + float(last_row.get("duration_qb", 0))
+        except (ValueError, ZeroDivisionError):
+            return 0.0

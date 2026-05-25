@@ -34,20 +34,20 @@ MS3_EXPANDED_DIR = MS3_ANALYSIS_DIR / "expanded"
 MS3_MEASURES_DIR = MS3_ANALYSIS_DIR / "measures"
 MS3_NOTES_DIR = MS3_ANALYSIS_DIR / "notes"
 
-NOTES_GROUPED_DIR = INTERIM_DIR / "notes-grouped"
-def get_aria_analysis_path ( aria_file_name: str, type: Literal["labels", "expanded", "measures", "notes", "notes-grouped"] = "labels" ):
+SCHEMATA_DIR = INTERIM_DIR / "schemata"
+def get_aria_analysis_path ( aria_file_name: str, type: Literal["labels", "expanded", "measures", "notes","schemata"] = "labels" ):
     cleaned = Path(aria_file_name).name.replace(".mscx", "")
     match type:
         case "labels":
-            return MS3_LABELS_DIR / (cleaned + ".labels.tsv")
+            return MS3_LABELS_DIR / (cleaned + ".labels.tsv") 
         case "expanded":
             return MS3_EXPANDED_DIR / (cleaned + ".harmonies.tsv")
         case "measures":
             return MS3_MEASURES_DIR / (cleaned + ".measures.tsv")
         case "notes":
             return MS3_NOTES_DIR / (cleaned + ".notes.tsv")
-        case "notes-grouped":
-            return NOTES_GROUPED_DIR / (cleaned + ".tsv")
+        case "schemata":
+            return SCHEMATA_DIR / (cleaned + ".tsv")
 
 
 

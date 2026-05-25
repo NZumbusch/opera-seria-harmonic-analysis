@@ -56,9 +56,6 @@ def skipgram (input: Iterator[T], k: float, n: int, c: Callable[[T, T], float], 
 
     Returns:
      Stream of found skipgrams
-
-    Raises:
-
     """
 
 

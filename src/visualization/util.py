@@ -46,3 +46,26 @@ BASE_PROJECT_COLORS = [
     "#d1495b",  # muted red
 ]
 PERIOD_NUMBER = 8
+
+
+
+def get_aria_total_duration(file_name: str) -> float:
+    measures_path = get_aria_analysis_path(file_name, "measures")
+    if not measures_path.exists():
+        return 0.0
+    
+    with open(measures_path, mode='r', encoding='utf-8') as f:
+        # Use DictReader to locate the 'quarterbeats' column
+        reader = csv.DictReader(f, delimiter='\t')
+        rows = list(reader)
+        if not rows:
+            return 0.0
+        
+        last_row = rows[-1]
+        raw_qb = last_row.get("quarterbeats", "0")
+        
+        # Handle fractions like "169/2" or simple floats
+        try:
+            return float(Fraction(raw_qb)) + float(last_row.get("duration_qb", 0))
+        except (ValueError, ZeroDivisionError):
+            return 0.0

@@ -1,23 +1,11 @@
 import bisect
 import csv
-from itertools import chain, combinations
-import math
 from pathlib import Path
 import re
 from typing import Iterator, Tuple
-
-from src.corpus.build_aria_index import create_or_load_aria_index
-import pandas as pd
-
-from src.analysis.util import PITCH_CLASSES, get_localkey_midi, parse_to_float
-from src.paths import NOTES_GROUPED_DIR, get_aria_analysis_path
+from src.analysis.util import  get_localkey_midi, parse_to_float
+from src.paths import get_aria_analysis_path
 from pydantic import BaseModel
-from tqdm import tqdm
-
-
-OUTPUT_FIELDS = ['chord_id', 'quarter_beat', 'note_combination', 'note_combination_midi']
-
-
 
 class NoteInfo (BaseModel):
     onset: float
@@ -52,10 +40,8 @@ class ContrapuntalPair(BaseModel):
         return (self.bass.midi - self.tonic) % 12
         
     @property
-    def sop_sd(self) -> int:
+    def soprano_sd(self) -> int:
         return (self.soprano.midi - self.tonic) % 12
-
-
 
 
 def load_harmony_map(harmony_tsv_path: str | Path) -> list[tuple[float, int, bool]]:
@@ -65,7 +51,7 @@ def load_harmony_map(harmony_tsv_path: str | Path) -> list[tuple[float, int, boo
     with open(harmony_tsv_path, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f, delimiter='\t')
         for row in reader:
-            onset = float(eval(row["quarterbeats_all_endings"]))
+            onset = float(parse_to_float(row["quarterbeats_all_endings"]))
             
             harmony_map.append((onset, get_localkey_midi(row["globalkey"], True if row["globalkey_is_minor"] == "1" else False, row["localkey"]), True if row["globalkey_is_minor"] == "1" else False))
             
@@ -142,6 +128,9 @@ def extract_outer_voices(notes_file_path: str | Path) -> Tuple[list[NoteInfo], l
     with open(notes_file_path, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f, delimiter='\t')
         
+
+        current_bass = None
+        current_soprano = None
         for row in reader:
             if row.get("gracenote"): 
                 continue
@@ -156,8 +145,11 @@ def extract_outer_voices(notes_file_path: str | Path) -> Tuple[list[NoteInfo], l
                     bass = min(active_notes, key=lambda n: n.midi)
                     soprano = max(active_notes, key=lambda n: n.midi)
                     
-                    soprano_notes.append(soprano)
-                    bass_notes.append(bass)
+                    if current_bass != bass or current_soprano != soprano:
+                        soprano_notes.append(soprano)
+                        bass_notes.append(bass)
+
+                        current_bass, current_soprano = bass, soprano
                 
                 active_notes = [n for n in active_notes if n.end > onset]
 
