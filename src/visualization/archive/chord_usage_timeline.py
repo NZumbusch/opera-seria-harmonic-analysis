@@ -1,5 +1,5 @@
-from pathlib import Path
 import re
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
@@ -7,19 +7,7 @@ import matplotlib.ticker as mtick
 from analysis.chord_distribution.chord_distribution_rolling_time_windows import (
     get_chord_distribution_by_sliding_window,
 )
-from paths import OUTPUT_FIGURES_DIR
-
-
-from pathlib import Path
-import re
-
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mtick
-
-from analysis.chord_distribution.chord_distribution_rolling_time_windows import (
-    get_chord_distribution_by_sliding_window,
-)
-from paths import OUTPUT_FIGURES_DIR
+from src.paths import OUTPUT_FIGURES_DIR
 
 
 def draw_chord_group_timeline(
@@ -29,18 +17,19 @@ def draw_chord_group_timeline(
     window_size: int = 12,
     step: int = 1,
     is_major: bool | None = None,
-    min_year: int=1670, 
-    max_year: int=1800
+    min_year: int = 1670,
+    max_year: int = 1800,
 ) -> Path:
     raw_data = get_chord_distribution_by_sliding_window(
         window_size=window_size,
         step=step,
         is_major=is_major,
         min_year=min_year,
-        max_year=max_year
+        max_year=max_year,
     )
 
-    if len(chord_group) < 1: raise ValueError
+    if len(chord_group) < 1:
+        raise ValueError
 
     if not raw_data:
         raise ValueError("No chord distribution data available.")
@@ -62,13 +51,15 @@ def draw_chord_group_timeline(
         if total_chords == 0:
             continue
 
-        chord_pct = (sum([ chord_counts.get(chord, 0) for chord in chord_group ]) / total_chords) * 100
+        chord_pct = (
+            sum([chord_counts.get(chord, 0) for chord in chord_group]) / total_chords
+        ) * 100
 
         years.append(midpoint_year)
         percentages.append(chord_pct)
 
     if not years:
-        raise ValueError(f'No timeline data could be computed for chord group".')
+        raise ValueError('No timeline data could be computed for chord group".')
 
     mode_label = "arias in all keys"
     if is_major is True:
@@ -126,4 +117,7 @@ if __name__ == "__main__":
         "early_classical_cadential": ["I64", "V", "V7"],
         "dominant_family": ["V", "V7", "vii°", "vii°7"],
     }
-    draw_chord_group_timeline(CHORD_GROUPS["galant_predominants"], chord_group_name="galant predominant chords (ii6, ii65, IV, IV6, V/V, vii°/V)")
+    draw_chord_group_timeline(
+        CHORD_GROUPS["galant_predominants"],
+        chord_group_name="galant predominant chords (ii6, ii65, IV, IV6, V/V, vii°/V)",
+    )

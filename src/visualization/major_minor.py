@@ -1,10 +1,8 @@
 from typing import Mapping
 
 import matplotlib.pyplot as plt
-import scienceplots  # needed for plt.style
 
-from paths import OUTPUT_FIGURES_DIR
-from src.visualization.util import get_colors_for_groups
+from src.paths import OUTPUT_FIGURES_DIR
 from src.analysis.major_minor_distribution_periods import get_mode_percentages_by_period
 
 
@@ -28,7 +26,7 @@ def draw_mode_percentage_distribution(
     x_label: str = "Period",
     y_label: str = "Percentage of arias",
     colors: Mapping[str, str] | None = None,
-    output_path = OUTPUT_FIGURES_DIR / "mode_distribution_periods.png",
+    output_path=OUTPUT_FIGURES_DIR / "mode_distribution_periods.png",
 ) -> None:
     x_values, series = prepare_mode_percentage_series(mode_percentages)
 
@@ -37,7 +35,7 @@ def draw_mode_percentage_distribution(
 
     for group in ["major", "minor"]:
         y_values = series[group]
-        line, = ax.plot(
+        (line,) = ax.plot(
             x_values,
             y_values,
             linewidth=1.8,

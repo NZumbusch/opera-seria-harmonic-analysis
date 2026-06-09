@@ -1,19 +1,24 @@
-from collections.abc import Callable
 import json
+from collections.abc import Callable
 from pathlib import Path
 
-from src.analysis.util import percentage_signal_change_normalization, z_score_normalization
-from src.analysis.chord_distribution.chord_trend_grouping import find_trend_groupings_fpca
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
+
+from src.analysis.chord_distribution.chord_trend_grouping import (
+    find_trend_groupings_fpca,
+)
+from src.analysis.util import (
+    percentage_signal_change_normalization,
+    z_score_normalization,
+)
 from src.paths import OUTPUT_FIGURES_DIR
 
 
-
 def draw_fpca_clusters_timeline(
-    min_year: int = 1700, 
-    max_year: int = 1820, 
+    min_year: int = 1700,
+    max_year: int = 1820,
     timeline_resolution: int = 300,
     min_percentage_of_arias_with_chord: float = 0.2,
     is_major: None | bool = None,
@@ -22,19 +27,20 @@ def draw_fpca_clusters_timeline(
     n_clusters: int = 4,
     output_dir: Path = OUTPUT_FIGURES_DIR,
     outlier_percentile: float = 85.0,
-    normalization_function: Callable[[npt.NDArray], npt.NDArray] | None = z_score_normalization,
+    normalization_function: Callable[[npt.NDArray], npt.NDArray]
+    | None = z_score_normalization,
     outlier_grouping: bool = False,
-    normalization_name: str | None = None
-) -> Path:    
+    normalization_name: str | None = None,
+) -> Path:
     function_arguments = locals()
     chord_groups, eval_years, development_matrix, chords = find_trend_groupings_fpca(
-        min_year=min_year, 
-        max_year=max_year, 
-        timeline_resolution=timeline_resolution, 
-        min_percentage_of_arias_with_chord=min_percentage_of_arias_with_chord, 
-        is_major=is_major, 
-        frac=frac, 
-        n_components=n_components, 
+        min_year=min_year,
+        max_year=max_year,
+        timeline_resolution=timeline_resolution,
+        min_percentage_of_arias_with_chord=min_percentage_of_arias_with_chord,
+        is_major=is_major,
+        frac=frac,
+        n_components=n_components,
         n_clusters=n_clusters,
         outlier_percentile=outlier_percentile,
         normalization_function=normalization_function,
@@ -44,9 +50,11 @@ def draw_fpca_clusters_timeline(
     # dynamic grid (e.g. 2x2 for 4 clusters)
     nrows = int(np.ceil(n_clusters / 2))
     ncols = 2 if n_clusters > 1 else 1
-    
-    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(14, 4 * nrows), sharex=True, sharey=True)
-    axes = np.array(axes).flatten() # flatten to handle 1D or 2D
+
+    fig, axes = plt.subplots(
+        nrows=nrows, ncols=ncols, figsize=(14, 4 * nrows), sharex=True, sharey=True
+    )
+    axes = np.array(axes).flatten()  # flatten to handle 1D or 2D
 
     # color palette
     colors = ["#e7298a", "#d95f02", "#7570b3", "#1f4e79"]
@@ -54,74 +62,94 @@ def draw_fpca_clusters_timeline(
     # map chord names to their row index in the development matrix
     chord_to_row_idx = {name: idx for idx, name in enumerate(chords)}
 
-    mode_label = "all keys" if is_major is None else ("major keys only" if is_major else "minor keys only")
+    mode_label = (
+        "all keys"
+        if is_major is None
+        else ("major keys only" if is_major else "minor keys only")
+    )
 
     for iter, (cluster_id, cluster_chords) in enumerate(chord_groups.items()):
         ax = axes[cluster_id]
         color = colors[cluster_id % len(colors)]
-        
+
         if not cluster_chords:
             ax.set_title(f"Cluster {cluster_id + 1}: Empty")
             continue
-            
+
         # get the normalized rows for just the chords in this cluster
         cluster_row_indices = [chord_to_row_idx[name] for name in cluster_chords]
         cluster_curves = development_matrix[cluster_row_indices]
-        
+
         # plot individual faint lines for each chord in the cluster
         for i, chord_name in enumerate(cluster_chords):
             ax.plot(
-                eval_years, 
-                cluster_curves[i], 
-                color=color, 
-                alpha=0.25, 
+                eval_years,
+                cluster_curves[i],
+                color=color,
+                alpha=0.25,
                 linewidth=1,
-                label="Individual Chord Trend" if i == 0 else ""
+                label="Individual Chord Trend" if i == 0 else "",
             )
-            
+
         # calculate and plot the average master trend for all clusters except the last one (outliers)
         if not outlier_grouping or iter < len(chord_groups) - 1:
             cluster_mean_profile = np.mean(cluster_curves, axis=0)
             ax.plot(
-                eval_years, 
-                cluster_mean_profile, 
-                color=color, 
-                linewidth=3.5, 
-                label="Cluster Center Trend"
+                eval_years,
+                cluster_mean_profile,
+                color=color,
+                linewidth=3.5,
+                label="Cluster Center Trend",
             )
-        
+
         # subplot details
-        ax.set_title(f"Cluster {cluster_id + 1} ({len(cluster_chords)} Chords)", fontsize=11, fontweight='bold')
+        ax.set_title(
+            f"Cluster {cluster_id + 1} ({len(cluster_chords)} Chords)",
+            fontsize=11,
+            fontweight="bold",
+        )
         ax.grid(True, axis="y", alpha=0.3)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.set_xlim(min_year, max_year)
-        
+
         # display sample chords
         sample_size = min(5, len(cluster_chords))
-        sample_string = ", ".join(cluster_chords[:sample_size]) + ("..." if len(cluster_chords) > sample_size else "")
-        ax.legend(title=f"Sample: {sample_string}", loc="upper right", fontsize=8, frameon=True, facecolor="white", edgecolor="none")
+        sample_string = ", ".join(cluster_chords[:sample_size]) + (
+            "..." if len(cluster_chords) > sample_size else ""
+        )
+        ax.legend(
+            title=f"Sample: {sample_string}",
+            loc="upper right",
+            fontsize=8,
+            frameon=True,
+            facecolor="white",
+            edgecolor="none",
+        )
 
         print(chord_groups)
 
-    
-
     # label shared structural axes
     for col in range(ncols):
-        axes[-(col+1)].set_xlabel("Year")
+        axes[-(col + 1)].set_xlabel("Year")
     for row in range(nrows):
         axes[row * ncols].set_ylabel("Standardized Frequency (Z-Score)")
 
-    fig.suptitle(f"FPCA Historical Trend Groupings ({mode_label})", fontsize=14, fontweight="bold", y=0.98)
+    fig.suptitle(
+        f"FPCA Historical Trend Groupings ({mode_label})",
+        fontsize=14,
+        fontweight="bold",
+        y=0.98,
+    )
 
     normalization_text = ""
-    if (normalization_name):
+    if normalization_name:
         normalization_text = f"| Normalization: {normalization_name} "
 
     fig.text(
         0.5,
         0.01,
-        f"LOESS frac: {frac} {normalization_text}| Min Presence: {min_percentage_of_arias_with_chord*100}%",
+        f"LOESS frac: {frac} {normalization_text}| Min Presence: {min_percentage_of_arias_with_chord * 100}%",
         ha="center",
         fontsize=9,
         style="italic",
@@ -134,7 +162,7 @@ def draw_fpca_clusters_timeline(
     # create metadata saving function arguments and chord_groups
     metadata = {
         "arguments": json.dumps(function_arguments, default=str),
-        "chord_groups": json.dumps(chord_groups, default=str)
+        "chord_groups": json.dumps(chord_groups, default=str),
     }
 
     # save fig
@@ -145,6 +173,7 @@ def draw_fpca_clusters_timeline(
     plt.close(fig)
 
     return output_path
+
 
 if __name__ == "__main__":
     draw_fpca_clusters_timeline(
@@ -157,5 +186,5 @@ if __name__ == "__main__":
         outlier_percentile=90.0,
         outlier_grouping=False,
         normalization_function=percentage_signal_change_normalization,
-        normalization_name="Percentage signal change"
+        normalization_name="Percentage signal change",
     )

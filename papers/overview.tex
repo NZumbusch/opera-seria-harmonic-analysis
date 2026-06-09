@@ -1,0 +1,128 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{lmodern}
+\usepackage{csquotes}
+\usepackage{mathptmx} % Times font
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+
+
+% Bibtex
+\usepackage[backend=biber,style=ieee]{biblatex}
+\addbibresource{references.bib}
+
+
+
+% Definitions
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+% --- Page Margins (Two-Column) ---
+\usepackage[
+  top=25mm,
+  bottom=25mm,
+  left=20mm,
+  right=20mm,
+  columnsep=8mm
+]{geometry}
+
+% --- Title and Author ---
+\usepackage{titling}
+\pretitle{\begin{center}\Large\bfseries}
+\posttitle{\par\end{center}\vskip 0.5em}
+\preauthor{\begin{center}\large\lineskip .5em}
+\postauthor{\end{center}\vskip 1em}
+
+\title{Discovering trends in historical aria data using loess smoothing, functional component analysis and generalized skipgrams}
+
+\author{
+    \textbf{Nathan Zumbusch} \\
+    HSLU Luzern, Switzerland \\
+    {\tt nathan.zumbsuch@stud.hslu.ch }
+}
+\date{04.06.2026}
+
+% --- Abstract ---
+\renewenvironment{abstract}
+ {\small
+  \begin{center}
+  \bfseries \abstractname\vspace{-.5em}\vspace{0pt}
+  \end{center}
+  \itshape
+ }
+ {\par\vspace{1em}}
+
+\begin{document}
+
+\maketitle
+% \thispagestyle{empty} % Removes page numbers on first page
+% \pagestyle{empty}     % Removes page numbers on subsequent page
+
+
+\begin{abstract}
+The dissection of different styles of music and their respective developments has historically been a field dominated by manual and selective analysis. Though some attempts at more comprehensive breakdowns were made, the sheer number of works in any one style of music has hitherto made statistically meaningful analysis difficult if not impossible. In recent times, however, computational methods have allowed researchers to probe large corpora of musical works using statistical methods known from other fields, such as machine learning and natural language processing. This paper explores the analytical potential of such methods using the DIDONE corpus, an ERC-funded project at the Instituto Complutense de Ciencias Musicales (ICCM) in Madrid, which compiles arias from eighteenth-century opera seria. By presenting several computational approaches and their application, including the analysis of harmonic patterns and schemata usage, the study demonstrates how large-scale methods can yield new insights into stylistic conventions and historical developments within the repertoire.
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+Computational methods currently being applied to musical corpora can broadly be grouped into two categories. Most commonly, researchers use simple statistical methods to highlight particular facets of some collection of musical works, be they the chord usage, note density, tempo markings, and so on. Essentially, the data analyzed in this category is consumed as-is, which means that the underlying structures and their interplay --- which characterize music as an art form --- can only be inferred through their surface-level effects (such as the popularization of the V64 suspension in cadences of the classical period). Therefore, it is often necessary to introduce more holistic methods that take into consideration not only singular data points, but also how they interact to form a coherent whole. This second category of analysis methods includes attempts to model tonal spaces, melodic and harmonic schemata, and broader compositional frameworks.
+
+While both approaches have proven valuable, bridging the gap between surface-level trends and deeper structural evolution remains a challenge, especially considering the high semantic complexity of musical works in general. To address this, this paper focuses on a subset of methods, applying them to the arias of the DIDONE corpus to trace both macro-level harmonic shifts and the micro-level structural frameworks that define the genre's evolution over time.
+
+Specifically, this study introduces a multi-tiered computational approach to extract these historical trends. First, it applies weighted loess smoothing to chord distributions, allowing us to visualize continuous harmonic trends across the timelines of the arias. Building on this, it utilizes Functional Data Analysis (FDA) to automatically identify and group similar chord timelines, providing a robust, data-driven categorization of harmonic trajectories. Finally, building on the generalized skipgram models proposed by Rohrmeier, it implements an algorithm to detect underlying musical schemata within the arias. By tracing the historical usage of these extracted schemata, the paper demonstrates how combining simple statistical derivations with complex structural modeling can uncover new insights into the evolution of historical music.
+
+\section{Data Set}\label{sec:dataset}
+The primary data source for this study is the DIDONE corpus, an ERC-funded initiative investigating the expression of emotion in eighteenth-century opera seria. The dataset comprises approximately 2,700 digitized arias based on five libretti by Pietro Metastasio: \textit{Didone abbandonata}, \textit{Artaserse}, \textit{Alessandro nell’Indie}, \textit{Adriano in Siria}, and \textit{Demofoonte}. For each aria, the corpus provides an unannotated MusicXML file alongside a MuseScore (\texttt{.mscx}) file. Crucially, the latter contains harmonic annotations encoded according to the standard established by the Digital and Cognitive Musicology Lab (DCML), introduced by Neuwirth et al. \cite{neuwirthAnnotatedBeethovenCorpus2018b}.
+
+While the DCML standard provides a robust, standardized syntax for Roman numeral analysis, the hierarchical XML structure native to \texttt{.mscx} files is optimized for human readability in engraving software rather than large-scale computational processing. To make the data programmatically accessible, the dataset was parsed using \texttt{ms3}, an open-source Python library developed by Johannes Hentschel. This tool extracts the musical and analytical data from the MuseScore files and converts it into a series of interconnected, machine-readable Tab-Separated Values (\texttt{.tsv}) files. For each aria, this pipeline yields separate tabular representations for note events, harmonic labels, metric structures (measures), and an expanded set of automatically generated harmonic derivatives, such as figured bass representations.
+
+Following the initial data extraction, further preprocessing was done to ensure data integrity and structural consistency. As is common with large-scale, manually annotated corpora, the raw metadata contained administrative irregularities that required standardization prior to statistical analysis. To address this, a hybrid curation strategy combining automated filtering and expert manual review was employed. Custom programmatic routines were first applied to identify and rectify systematic errors and prominent outliers, such as gross chronological anomalies (e.g., correcting the year \enquote{7127} to \enquote{1727}) and easily reconcilable string duplications. However, because many inconsistencies --- such as orthographic variations in composer names (e.g., unifying spelling variants like \enquote{Niccolò Piccinni} and  \enquote{Niccolò Piccini}) or idiosyncratic typographic errors in aria identification codes --- require contextual judgment, a substantial portion of the dataset underwent manual correction. This cross-referencing process ensured a accurate and chronologically reliable dataset, forming the necessary foundation for the functional and structural analyses that follow.
+
+\section{Methodology}\label{sec:method}
+While analysis in this paper can broadly be categorized in terms of the two areas described in the introduction, its data-adjacent first approach can be further described as a two step process, first looking at individual chords and chord groups, then automatically discovering and grouping chords with similar usage timelines using functional component analysis.
+
+\subsection{Loess and bootstrapping}
+\subsubsection{Other methods}
+An intrinsic challenge in analyzing many historical corpora is the unequal distribution of datapoints across the temporal continuum, commonly referred to as \textit{irregular temporal sampling} or \textit{data sparsity}. In the DIDONE aria dataset, this manifests not only in the clustering of arias around the mid-eighteenth century but also in the high variance of aria counts even between adjacent years; a single year may yield a substantial number of arias, while the subsequent year may yield none. Given the prevalence of this issue in empirical data science, various mitigation strategies have been developed.
+
+One elementary approach involves reducing the temporal resolution of the data (i.e., temporal binning) to ensure at least one observation per window. This, however, introduces a fundamental trade-off: expanding the window size stabilizes the sample but obscures fine-grained temporal dynamics, whereas smaller windows preserve precision but are highly susceptible to erratic, low-sample fluctuations. Alternatively, one might define temporal windows not by fixed chronological durations, but by a fixed number of sequential data points. However, this method risks grouping historically disparate arias from the boundaries of different stylistic periods, thereby distorting chronological continuity while still significantly reducing the temporal resolution, particularly in smaller corpora. Therefore, although calculating the arithmetic mean of discrete, adjacent temporal bins is a standard approach for generating histograms, it is structurally inadequate for modeling continuous, linear trajectories over time. 
+To achieve a continuous representation, one can employ overlapping temporal windows, a technique known as a \textit{moving average} or \textit{rolling mean}. This results in a computationally fast algorithm that attenuates short-term stochastic fluctuations, thereby highlighting broader trends. As with discrete binning, selecting the optimal window size is the primary methodological challenge: larger windows introduce significant temporal lag, effectively homogenizing distinct historical developments by incorporating data from the distant past or future.
+
+\subsubsection{Loess}
+To address the limitations of simple rolling means, a more sophisticated approach involves applying differential weights to the data points within each temporal window. \textit{Locally estimated scatterplot smoothing} (LOESS) operationalizes this by selecting a defined subset (fraction) of the nearest data points for any given target time and applying a localized regression model. Crucially, LOESS weights the data points inversely to their temporal distance from the target year. This strategy not only affords superior adaptation to localized structural patterns compared to simple moving averages, but also robustly models non-linear trends. Furthermore, LOESS permits the integration of secondary, domain-specific weights—in this instance, the total chord count of the respective arias. From a methodological standpoint, a brief aria containing few chords should exert proportionally less influence on the global trajectory than a substantial aria; fewer chords inherently yield a less diverse, and therefore less statistically representative, sample of the overall harmonic vocabulary.
+
+
+This mechanism can be formalized mathematically. Let $x_i$ denote the composition year of aria $i$, $y_i$ the relative frequency of the specific chord or chord group within aria $i$, and $w_i$ the total chord count of aria $i$. The composite weight $W_i(x)$ for each aria relative to a target year $x$ is computed as the product of its structural weight (chord count) and the tricube function of its temporal distance to $x$. Here, $d_{max}(x)$ represents the maximal temporal distance to the furthest neighbour within the specified local fraction:
+$$ W_i(x) = w_i \cdot \left(1 - \left(\frac{|x_i - x|}{d_{max}(x)}\right)^3\right)^3 $$
+Utilizing these weights, the algorithm performs a locally weighted linear regression to estimate the parameters (intercept $\beta_0$ and slope $\beta_1$) that minimize the weighted sum of squared residuals for the target year $x$: 
+$$\hat{\boldsymbol{\beta}}(x) = \arg\min_{\beta_0,\beta_1} \sum_{i=1}^{k} W_i(x) \left( y_i - (\beta_0 + \beta_1x_i) \right)^2$$
+The final smoothed estimate at year $x$ is then obtained by evaluating the fitted line at that specific point: $\hat{y}(x) = \hat{\beta}_0(x) + \hat{\beta}_1(x)x$.
+
+\subsubsection{Bootstrapping}
+A secondary methodological challenge in corpus analysis concerns sample representativeness and generalizability. Specifically, one must ascertain whether the observed structural trends are properties of the underlying historical population, or merely artifacts of the specific aria collection comprising the DIDONE corpus. Intuitively, validating these trends would require cross-examination against an independent, comparable dataset.
+
+In the absence of another independent corpus, this challenge can be addressed computationally via a method called \textit{bootstrapping}. This non-parametric statistical technique approximates the sampling distribution by repeatedly drawing random samples --- crucially, with replacement --- from the original dataset. These resampled corpora serve as surrogate datasets, simulating the statistical variance one might encounter across different historical collections.
+
+By applying the aforementioned LOESS regression model independently to each of these bootstrap samples, we generate a distribution of smoothed temporal trajectories. Superimposing this spectrum of resampled graphs over the primary trajectory derived from the complete DIDONE corpus yields a statistically grounded confidence band. This approach not only quantifies the degree of expected sampling variance, but also demonstrates that structural trends whose magnitude exceed this bootstrap divergence represent robust, statistically significant historical developments rather than mere sampling noise.
+
+\subsection{Functional component analysis}
+
+\subsection{Skipgrams}
+- why
+- implementation / adaptation of rohrmeier for this usecase (pseudocode / main general steps in the algorithm)
+
+
+\section{Exploratory Results}\label{sec:results}
+FIrst loess timeline of chords, explain changes in style, leading to changes in schemata and loess timeline of schemata.
+
+\section{Conclusion}\label{sec:conclusion}
+Strength and Possibilities with large scale computational analysis, future possibilities.
+
+
+% --- References ---
+% example: \cite{finkensiepGENERALIZEDSKIPGRAMSPATTERN2018}.
+\printbibliography
+
+\end{document}

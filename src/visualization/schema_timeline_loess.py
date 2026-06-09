@@ -3,28 +3,27 @@ import re
 from collections import Counter
 from pathlib import Path
 
-from visualization.util import BASE_PROJECT_COLORS
-
-from src.analysis.util import get_aria_total_duration
-from src.analysis.chord_distribution.chord_usage_timeline_loess import weighted_loess
-from pydantic import BaseModel, ConfigDict
-from tqdm import tqdm
-import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
+import numpy as np
+from pydantic import BaseModel, ConfigDict
+from tqdm import tqdm
 
+from src.analysis.chord_distribution.chord_usage_timeline_loess import weighted_loess
+from src.analysis.util import get_aria_total_duration
 from src.corpus.build_aria_index import create_or_load_aria_index
-from src.paths import get_aria_analysis_path, OUTPUT_FIGURES_DIR
+from src.paths import OUTPUT_FIGURES_DIR, get_aria_analysis_path
+from visualization.util import BASE_PROJECT_COLORS
 
 
 class SchemaLoessGraphModel(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    x: np.ndarray # years
-    y: np.ndarray # percentages of schema in arias
-    w: np.ndarray # total number of schemata in aria (weight)
-    eval_years: np.ndarray # grid
-    smoothed_y: np.ndarray 
+    x: np.ndarray  # years
+    y: np.ndarray  # percentages of schema in arias
+    w: np.ndarray  # total number of schemata in aria (weight)
+    eval_years: np.ndarray  # grid
+    smoothed_y: np.ndarray
 
 
 def get_schema_loess_bootstrap_bounds(
@@ -62,9 +61,14 @@ def get_schema_loess_bootstrap_bounds(
     bootstrap_array = np.array(bootstrap_matrix)
 
     return {
-        "lower_bound": np.nanpercentile(bootstrap_array, bootstrap_cutoff_percentile, axis=0),
-        "upper_bound": np.nanpercentile(bootstrap_array, 100 - bootstrap_cutoff_percentile, axis=0),
+        "lower_bound": np.nanpercentile(
+            bootstrap_array, bootstrap_cutoff_percentile, axis=0
+        ),
+        "upper_bound": np.nanpercentile(
+            bootstrap_array, 100 - bootstrap_cutoff_percentile, axis=0
+        ),
     }
+
 
 def get_schema_loess_series(
     schema_names: list[str],
@@ -73,7 +77,7 @@ def get_schema_loess_series(
     is_major: bool | None = None,
     min_year: int = 1720,
     max_year: int = 1800,
-    normalization: str = "density" #"density", "raw", or "percentage"
+    normalization: str = "density",  # "density", "raw", or "percentage"
 ) -> SchemaLoessGraphModel:
     if frac <= 0 or frac > 1:
         raise ValueError("Frac has to be between 0 and 1.")
@@ -89,9 +93,9 @@ def get_schema_loess_series(
             continue
         if aria.year < min_year or aria.year > max_year:
             continue
-        if is_major is True and getattr(aria, 'mode', None) != "major":
+        if is_major is True and getattr(aria, "mode", None) != "major":
             continue
-        elif is_major is False and getattr(aria, 'mode', None) != "minor":
+        elif is_major is False and getattr(aria, "mode", None) != "minor":
             continue
 
         tsv_path = get_aria_analysis_path(aria.file_name, "schemata")
@@ -103,13 +107,13 @@ def get_schema_loess_series(
         schema_counts = Counter()
         total_schemata = 0
         max_end_time = 0.0
-        
-        with open(tsv_path, mode='r', encoding='utf-8') as f:
-            reader = csv.DictReader(f, delimiter='\t')
+
+        with open(tsv_path, mode="r", encoding="utf-8") as f:
+            reader = csv.DictReader(f, delimiter="\t")
             for row in reader:
                 schema_counts[row["schema_name"]] += 1
                 total_schemata += 1
-                
+
                 try:
                     end_t = float(row.get("end_time", 0))
                     if end_t > max_end_time:
@@ -126,13 +130,12 @@ def get_schema_loess_series(
         else:
             group_count = sum(schema_counts.get(s, 0) for s in schema_names)
 
-        
         if normalization == "density":
             # Occurrences per 100 quarter beats
-            y_val = (group_count / total_duration) * 100 
+            y_val = (group_count / total_duration) * 100
         elif normalization == "raw":
             y_val = float(group_count)
-        else: # "percentage"
+        else:  # "percentage"
             y_val = (group_count / total_schemata) * 100
 
         raw_years.append(aria.year)
@@ -152,7 +155,10 @@ def get_schema_loess_series(
     eval_years = np.linspace(min_year, max_year, timeline_resolution)
     smoothed_y = weighted_loess(x, y, w, eval_years, frac=frac)
 
-    return SchemaLoessGraphModel(x=x, y=y, w=w, eval_years=eval_years, smoothed_y=smoothed_y)
+    return SchemaLoessGraphModel(
+        x=x, y=y, w=w, eval_years=eval_years, smoothed_y=smoothed_y
+    )
+
 
 def draw_schema_loess_timeline(
     schema_names: list[str],
@@ -165,9 +171,9 @@ def draw_schema_loess_timeline(
     is_major: bool | None = None,
     min_year: int = 1720,
     max_year: int = 1800,
-    normalization: str = "density"
+    normalization: str = "density",
 ) -> Path:
-    
+
     series_data = get_schema_loess_series(
         schema_names=schema_names,
         timeline_resolution=timeline_resolution,
@@ -175,7 +181,7 @@ def draw_schema_loess_timeline(
         is_major=is_major,
         min_year=min_year,
         max_year=max_year,
-        normalization=normalization
+        normalization=normalization,
     )
 
     bootstrap_data = get_schema_loess_bootstrap_bounds(
@@ -199,9 +205,8 @@ def draw_schema_loess_timeline(
 
     fig, ax = plt.subplots(figsize=(12, 6))
 
-   
     sizes = (series_data.w / np.max(series_data.w)) * 100 + 10
-    
+
     color = BASE_PROJECT_COLORS[-1]
     ax.scatter(
         series_data.x,
@@ -234,10 +239,10 @@ def draw_schema_loess_timeline(
 
     if normalization == "density":
         ax.set_ylabel("Density (Occurrences per 100 quarter beats)")
-        ax.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1f'))
+        ax.yaxis.set_major_formatter(mtick.FormatStrFormatter("%.1f"))
     elif normalization == "raw":
         ax.set_ylabel("Absolute Count per Aria")
-        ax.yaxis.set_major_formatter(mtick.FormatStrFormatter('%d'))
+        ax.yaxis.set_major_formatter(mtick.FormatStrFormatter("%d"))
     else:
         ax.set_ylabel("Frequency per Aria (% of all schemata)")
         ax.yaxis.set_major_formatter(mtick.PercentFormatter(xmax=100))
@@ -250,26 +255,30 @@ def draw_schema_loess_timeline(
     ax.legend(loc="upper right", frameon=True, facecolor="white", edgecolor="none")
 
     fig.text(
-        0.5, 0.01,
+        0.5,
+        0.01,
         f"LOESS frac: {frac} | Bootstraps: {n_bootstrap}",
-        ha="center", fontsize=9, style="italic",
+        ha="center",
+        fontsize=9,
+        style="italic",
     )
 
     output_dir.mkdir(parents=True, exist_ok=True)
     fig.tight_layout(rect=(0, 0.03, 1, 1))
     fig.savefig(output_path, dpi=300, bbox_inches="tight")
     plt.close(fig)
-    
+
     print(f"Saved graph to {output_path}")
     return output_path
+
 
 if __name__ == "__main__":
     draw_schema_loess_timeline(
         schema_names=[],
         display_name="All Schemata",
         frac=0.35,
-        is_major=None, 
+        is_major=None,
         min_year=1720,
         max_year=1800,
-        normalization="density"
+        normalization="density",
     )

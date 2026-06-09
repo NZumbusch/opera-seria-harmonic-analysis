@@ -1,24 +1,24 @@
-from collections import defaultdict
-from pathlib import Path
-import math
 import json
+import math
+from collections import defaultdict
 
-from src.visualization.util import PERIOD_NUMBER
 from src.corpus.build_aria_index import create_or_load_aria_index
 from src.corpus.models import AriaHeaderModel
 from src.paths import ARIA_PERIOD_MAP_PATH
+from src.visualization.util import PERIOD_NUMBER
 
 
 def chunk_list(seq, n_chunks):
     chunk_size = math.ceil(len(seq) / n_chunks)
-    return [seq[i:i + chunk_size] for i in range(0, len(seq), chunk_size)]
+    return [seq[i : i + chunk_size] for i in range(0, len(seq), chunk_size)]
 
 
 def get_arias_by_year_period(n_periods: int = 8) -> dict[str, list[AriaHeaderModel]]:
     aria_index = create_or_load_aria_index()
 
     valid_arias = [
-        aria for aria in aria_index
+        aria
+        for aria in aria_index
         if aria.year is not None
         and aria.file_name is not None
         and 1500 <= aria.year <= 1850
@@ -26,7 +26,9 @@ def get_arias_by_year_period(n_periods: int = 8) -> dict[str, list[AriaHeaderMod
     if not valid_arias:
         return {}
 
-    valid_arias = sorted(valid_arias, key=lambda aria: aria.year if aria.year is not None else -1)
+    valid_arias = sorted(
+        valid_arias, key=lambda aria: aria.year if aria.year is not None else -1
+    )
     aria_chunks = chunk_list(valid_arias, n_periods)
 
     out: dict[str, list[AriaHeaderModel]] = {}
@@ -53,7 +55,7 @@ def save_aria_period_map() -> None:
                     "file_name": aria.file_name,
                     "year": aria.year,
                     "period": label,
-                    "n": len(arias)
+                    "n": len(arias),
                 }
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
@@ -61,6 +63,7 @@ def save_aria_period_map() -> None:
         f"Wrote aria period map at {ARIA_PERIOD_MAP_PATH} "
         f"with {sum(len(v) for v in groups.values())} assignments."
     )
+
 
 def create_or_get_period_map() -> dict[str, list[AriaHeaderModel]]:
     if not ARIA_PERIOD_MAP_PATH.exists():

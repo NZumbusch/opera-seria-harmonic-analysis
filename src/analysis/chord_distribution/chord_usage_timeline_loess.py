@@ -1,13 +1,15 @@
+import numpy as np
 from pydantic import BaseModel, ConfigDict
 from tqdm import tqdm
-from src.analysis.util import create_or_get_aria_chord_lookup
-import numpy as np
 
-def weighted_loess (x, y, weights, eval_x, frac=0.3):
+from src.analysis.util import create_or_get_aria_chord_lookup
+
+
+def weighted_loess(x, y, weights, eval_x, frac=0.3):
     n = len(x)
     n_neighbors = int(n * frac)
     smoothed_y = np.zeros_like(eval_x)
-    
+
     # pre-calculate a constant for the X matrix, made up by (intercept, x-values)
     # stays the same shape, just filled with different neighborhood data
     X_matrix = np.ones((n_neighbors, 2))
@@ -18,58 +20,60 @@ def weighted_loess (x, y, weights, eval_x, frac=0.3):
 
         # partition of n_neighbor closest neighbors
         idx = np.argpartition(distances, n_neighbors)[:n_neighbors]
-        
+
         # sort only the neighbors
         neighbor_x = x[idx]
         neighbor_y = y[idx]
         neighbor_dist = distances[idx]
         neighbor_weights = weights[idx]
-        
+
         # tricube weights for the time distance
         max_dist = np.max(neighbor_dist)
         u = neighbor_dist / (max_dist if max_dist > 0 else 1)
-        time_weights = (1 - u**3)**3
-        
+        time_weights = (1 - u**3) ** 3
+
         # combine time distance tricube weights with aria size weights
         W = time_weights * neighbor_weights
-        
-        ''' 
+
+        """ 
         Solve the equation: 
         beta = (X.T * W * X)^-1 * X.T * W * y
         => (X.T * W * X) * beta = X.T * W * y
-        '''
+        """
 
         # build x for the neighborhood, with (1, year)
         X_matrix[:, 1] = neighbor_x
-        
+
         # apply weights to X and y
         XW = X_matrix * W[:, np.newaxis]
-        
+
         # solve system
         try:
-            ATA = XW.T @ X_matrix # reduce to 2x2 fields (X.T * W * X)
-            ATy = XW.T @ neighbor_y # where does it want to go, in 2x2 fields (X.T * W * y)
-            beta = np.linalg.solve(ATA, ATy) # solve lin equation ATA * beta = ATy
+            ATA = XW.T @ X_matrix  # reduce to 2x2 fields (X.T * W * X)
+            ATy = (
+                XW.T @ neighbor_y
+            )  # where does it want to go, in 2x2 fields (X.T * W * y)
+            beta = np.linalg.solve(ATA, ATy)  # solve lin equation ATA * beta = ATy
 
             # get smoothened / predicted value
             smoothed_y[i] = beta[0] + beta[1] * x_val
         except np.linalg.LinAlgError:
             # fallback to simple weighted mean if the matrix is singular
-            smoothed_y[i] = np.average(neighbor_y, weights=W + 1e-10)   
+            smoothed_y[i] = np.average(neighbor_y, weights=W + 1e-10)
     return smoothed_y
 
 
+class ChordGroupLoessGraphModel(BaseModel):
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True
+    )  # needed to allow np.ndarray
 
-
-class ChordGroupLoessGraphModel (BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True) # needed to allow np.ndarray
-
-
-    x: np.ndarray # years
-    y: np.ndarray # percentages of chord group in arias
+    x: np.ndarray  # years
+    y: np.ndarray  # percentages of chord group in arias
     w: np.ndarray  # total number of chords in arias
     eval_years: np.ndarray  # grid
-    smoothed_y: np.ndarray 
+    smoothed_y: np.ndarray
+
 
 def get_chord_group_loess_series(
     chord_group: list[str],
@@ -128,14 +132,16 @@ def get_chord_group_loess_series(
     eval_years = np.linspace(min_year, max_year, timeline_resolution)
     smoothed_y = weighted_loess(x, y, w, eval_years, frac=frac)
 
-    return ChordGroupLoessGraphModel(x=x, y=y, w=w, eval_years=eval_years, smoothed_y=smoothed_y)
+    return ChordGroupLoessGraphModel(
+        x=x, y=y, w=w, eval_years=eval_years, smoothed_y=smoothed_y
+    )
+
 
 def get_chord_group_loess_bootstrap_bounds(
     series_data: ChordGroupLoessGraphModel,
     frac: float = 0.3,
     n_bootstrap: int = 200,
-    bootstrap_cutoff_percentile:
-    float = 2.5,
+    bootstrap_cutoff_percentile: float = 2.5,
 ) -> dict[str, np.ndarray]:
     x = series_data.x
     y = series_data.y
@@ -157,11 +163,7 @@ def get_chord_group_loess_bootstrap_bounds(
         range(n_bootstrap),
         desc="Bootstrapping using weighted random selections and weighted loess",
     ):
-        boot_idx = np.random.choice(
-            len(x),
-            size=len(x),
-            replace=True
-        )
+        boot_idx = np.random.choice(len(x), size=len(x), replace=True)
 
         bx, by, bw = x[boot_idx], y[boot_idx], w[boot_idx]
         b_sort = np.argsort(bx)
@@ -194,4 +196,3 @@ def get_chord_group_loess_bootstrap_bounds(
         "lower_bound": lower_bound,
         "upper_bound": upper_bound,
     }
-

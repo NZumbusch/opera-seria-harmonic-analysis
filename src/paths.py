@@ -1,9 +1,11 @@
 from __future__ import annotations
+
 import os
 from pathlib import Path
 from typing import Literal
 
 _MARKERS = ("pyproject.toml", ".git")
+
 
 def find_project_root(start: Path | None = None) -> Path:
     env_root = os.environ.get("PROJECT_ROOT")
@@ -20,6 +22,7 @@ def find_project_root(start: Path | None = None) -> Path:
 
     raise RuntimeError("Could not find project root.")
 
+
 PROJECT_ROOT = find_project_root()
 DATA_DIR = PROJECT_ROOT / "data"
 RAW_DIR = DATA_DIR / "raw"
@@ -35,11 +38,16 @@ MS3_MEASURES_DIR = MS3_ANALYSIS_DIR / "measures"
 MS3_NOTES_DIR = MS3_ANALYSIS_DIR / "notes"
 
 SCHEMATA_DIR = INTERIM_DIR / "schemata"
-def get_aria_analysis_path ( aria_file_name: str, type: Literal["labels", "expanded", "measures", "notes","schemata"] = "labels" ):
+
+
+def get_aria_analysis_path(
+    aria_file_name: str,
+    type: Literal["labels", "expanded", "measures", "notes", "schemata"] = "labels",
+):
     cleaned = Path(aria_file_name).name.replace(".mscx", "")
     match type:
         case "labels":
-            return MS3_LABELS_DIR / (cleaned + ".labels.tsv") 
+            return MS3_LABELS_DIR / (cleaned + ".labels.tsv")
         case "expanded":
             return MS3_EXPANDED_DIR / (cleaned + ".harmonies.tsv")
         case "measures":
@@ -48,8 +56,6 @@ def get_aria_analysis_path ( aria_file_name: str, type: Literal["labels", "expan
             return MS3_NOTES_DIR / (cleaned + ".notes.tsv")
         case "schemata":
             return SCHEMATA_DIR / (cleaned + ".tsv")
-
-
 
 
 # raw

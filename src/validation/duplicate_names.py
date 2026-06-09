@@ -1,8 +1,9 @@
-from collections import defaultdict
 import re
 import unicodedata
+from collections import defaultdict
 
 from src.corpus.build_aria_index import create_or_load_aria_index
+
 
 def normalize_composer_name(name: str) -> str:
     name = name.lower().strip()
@@ -11,6 +12,7 @@ def normalize_composer_name(name: str) -> str:
     name = re.sub(r"[^a-z0-9\s]", " ", name)
     name = re.sub(r"\s+", " ", name).strip()
     return name
+
 
 def get_composer_clusters():
     aria_index = create_or_load_aria_index()
@@ -24,6 +26,7 @@ def get_composer_clusters():
 
     return clusters
 
+
 def print_duplicate_clusters():
     clusters = get_composer_clusters()
     for norm, names in sorted(clusters.items(), key=lambda x: (-len(set(x[1])), x[0])):
@@ -32,7 +35,6 @@ def print_duplicate_clusters():
             print(f"\n{norm} -> {len(unique_names)} variants")
             for name in unique_names:
                 print(f"  - {name}")
-
 
 
 if __name__ == "__main__":

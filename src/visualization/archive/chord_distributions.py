@@ -1,14 +1,19 @@
 from typing import Callable, Mapping
 
-from src.visualization.util import get_colors_for_groups, make_project_colors, make_sequential_colors
-
-from analysis.chord_distribution.chord_distribution_depending_on_year import get_chord_distribution_by_year, get_chord_distribution_by_year_periods
-from paths import OUTPUT_FIGURES_DIR
-
-from analysis.chord_distribution.chord_distribution_depending_on_emotions import get_chord_distribution_by_emotion, global_top_n_chords
-from src.analysis.types import ChordDistribution
 import matplotlib.pyplot as plt
-import scienceplots # needed for plt.style
+
+from analysis.chord_distribution.chord_distribution_depending_on_emotions import (
+    get_chord_distribution_by_emotion,
+    global_top_n_chords,
+)
+from analysis.chord_distribution.chord_distribution_depending_on_year import (
+    get_chord_distribution_by_year_periods,
+)
+from src.paths import OUTPUT_FIGURES_DIR
+from src.analysis.types import ChordDistribution
+from src.visualization.util import (
+    get_colors_for_groups,
+)
 
 
 def prepare_chord_series(
@@ -27,6 +32,7 @@ def prepare_chord_series(
 
     return top_chords, group_to_pct
 
+
 def draw_chord_distribution(
     chord_distribution: ChordDistribution,
     *,
@@ -35,8 +41,8 @@ def draw_chord_distribution(
     x_label: str = "Chord",
     y_label: str = "Percentage of chord tokens (log scale)",
     colors: Mapping[str, str] | None = None,
-    output_path = OUTPUT_FIGURES_DIR / "chord_distribution.png",
-    group_order: Callable[[str], int] | None = None
+    output_path=OUTPUT_FIGURES_DIR / "chord_distribution.png",
+    group_order: Callable[[str], int] | None = None,
 ) -> None:
     x_values, group_to_pct = prepare_chord_series(chord_distribution, top_n=top_n)
 
@@ -51,7 +57,7 @@ def draw_chord_distribution(
     for group in groups:
         y_values = group_to_pct[group]
         safe_y = [max(y, 0.001) for y in y_values]
-        line, = ax.plot(
+        (line,) = ax.plot(
             x_values,
             safe_y,
             linewidth=1.8,
@@ -77,7 +83,7 @@ def draw_chord_distribution(
     plt.close(fig)
 
 
-def draw_chord_distribution_emotions () -> None:
+def draw_chord_distribution_emotions() -> None:
     chord_distribution = get_chord_distribution_by_emotion()
     groups = list(chord_distribution.keys())
 
@@ -89,7 +95,8 @@ def draw_chord_distribution_emotions () -> None:
         output_path=OUTPUT_FIGURES_DIR / "chord_distribution_emotion.png",
     )
 
-def draw_chord_distribution_years () -> None:
+
+def draw_chord_distribution_years() -> None:
     chord_distribution = get_chord_distribution_by_year_periods(is_major=False)
     groups = sorted(chord_distribution.keys(), key=lambda g: int(g.split("-")[0]))
 
@@ -99,7 +106,7 @@ def draw_chord_distribution_years () -> None:
         title="Top chord distributions of arias in minor keys",
         colors=get_colors_for_groups(groups, ordered=True),
         output_path=OUTPUT_FIGURES_DIR / "chord_distribution_periods_minor.png",
-        group_order=lambda g: int(g.split("-")[0])
+        group_order=lambda g: int(g.split("-")[0]),
     )
 
 

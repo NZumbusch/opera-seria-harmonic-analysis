@@ -1,35 +1,35 @@
 import math
-from os import listdir
 import os
+import re
+import xml.etree.ElementTree as ET
+from os import listdir
 from os.path import isfile, join
+from pathlib import Path
+
 from src.corpus.models import AriaHeaderModel, AriaMetaDataModel
 from src.paths import ARIA_INDEX_PATH, MSCX_FOLDER_DIR
-import re, json
-from pathlib import Path
-import xml.etree.ElementTree as ET
-from dataclasses import asdict
-from pydantic import TypeAdapter
 
-def build_index (index_path: Path):
+
+def build_index(index_path: Path):
     folder_path = MSCX_FOLDER_DIR
     music_files = [f for f in listdir(folder_path) if isfile(join(folder_path, f))]
 
     DIDONE_FILE_NAME_PAT = re.compile(
-        r'^(?P<drama>[A-Za-z]+)'
-        r'(?P<aria_no>\d+[A-Z]?)'         # e.g. 31M
-        r'-'
-        r'(?P<incipit>.+?)'               # non-greedy incipit slug (Tu_vuoi)
-        r'-'
-        r'(?P<year>nd|\d{4})'             # year or 'nd'
-        r'-'
-        r'(?P<composer>[^\[]+)'           # composer up to [
-        r'\['
-        r'(?P<act_scene>[^\]]+)'          # first bracket group
-        r'\]'
-        r'\['
-        r'(?P<item_id>\d+)'               # numeric id
-        r'\]'
-        r'\.mscx$'
+        r"^(?P<drama>[A-Za-z]+)"
+        r"(?P<aria_no>\d+[A-Z]?)"  # e.g. 31M
+        r"-"
+        r"(?P<incipit>.+?)"  # non-greedy incipit slug (Tu_vuoi)
+        r"-"
+        r"(?P<year>nd|\d{4})"  # year or 'nd'
+        r"-"
+        r"(?P<composer>[^\[]+)"  # composer up to [
+        r"\["
+        r"(?P<act_scene>[^\]]+)"  # first bracket group
+        r"\]"
+        r"\["
+        r"(?P<item_id>\d+)"  # numeric id
+        r"\]"
+        r"\.mscx$"
     )
 
     def parse_filename(fname: str) -> dict | None:
@@ -41,31 +41,33 @@ def build_index (index_path: Path):
         d = m.groupdict()
 
         # post-process common normalization
-        d['incipit'] = d['incipit'].replace('_', ' ')
-
+        d["incipit"] = d["incipit"].replace("_", " ")
 
         # split act and scene
-        act_scene = re.match(r'^(?P<act>\d+)\.(?P<scene>\d+)', d['act_scene'])
+        act_scene = re.match(r"^(?P<act>\d+)\.(?P<scene>\d+)", d["act_scene"])
         if act_scene:
             d["act"] = int(act_scene.group("act"))
-            d["scene"] = int(act_scene.group("scene")) if act_scene.group("scene") is not None else None
+            d["scene"] = (
+                int(act_scene.group("scene"))
+                if act_scene.group("scene") is not None
+                else None
+            )
         else:
             d["act"] = None
             d["scene"] = None
 
         # try to split aria_no into numeric and suffix
-        nmc_sfx = re.match(r'(?P<num>\d+)(?P<suffix>[A-Z])?$', d['aria_no'])
+        nmc_sfx = re.match(r"(?P<num>\d+)(?P<suffix>[A-Z])?$", d["aria_no"])
         if nmc_sfx:
-            d['aria_number'] = int(nmc_sfx.group('num'))
-            d['aria_suffix'] = nmc_sfx.group('suffix') or ''
+            d["aria_number"] = int(nmc_sfx.group("num"))
+            d["aria_suffix"] = nmc_sfx.group("suffix") or ""
         else:
-            d['aria_number'] = d['aria_no']
-            d['aria_suffix'] = ''
+            d["aria_number"] = d["aria_no"]
+            d["aria_suffix"] = ""
 
         return d
 
-
-    def extract_header_from_mscx (file_path: Path) -> AriaHeaderModel:
+    def extract_header_from_mscx(file_path: Path) -> AriaHeaderModel:
         """Extract header info from a MuseScore .mscx file using <metaTag> elements."""
         out = AriaHeaderModel()
 
@@ -80,7 +82,9 @@ def build_index (index_path: Path):
                 # e.g. <metaTag name="movementTitle">text</metaTag>
                 if elem.tag == "metaTag":
                     name = elem.get("name")
-                    text = elem.text.strip() if elem.text and elem.text.strip() else None
+                    text = (
+                        elem.text.strip() if elem.text and elem.text.strip() else None
+                    )
                     if not name or not text:
                         elem.clear()
                         continue
@@ -129,13 +133,13 @@ def build_index (index_path: Path):
                                 if not text == "nd":
                                     try:
                                         # parse uncertain years like 1784[1780] from Did20M-Fosca_nube-1780-Piticchio[2.08][1874].mscx
-                                        out.year = int(text.split('[')[0].strip())
+                                        out.year = int(text.split("[")[0].strip())
                                         out.source_year = text
                                     except:
                                         pass
                         case "creationDate":
                             out.creation_date = text
-        
+
                 # free memory
                 elem.clear()
 
@@ -145,7 +149,9 @@ def build_index (index_path: Path):
     for aria in music_files:
         file_data = parse_filename(aria)
 
-        if (folder_path / aria).is_file() and (folder_path / aria).suffix.lower() == ".mscx":
+        if (folder_path / aria).is_file() and (
+            folder_path / aria
+        ).suffix.lower() == ".mscx":
             header_data = extract_header_from_mscx(folder_path / aria)
 
             if file_data and header_data and header_data.id:
@@ -169,7 +175,9 @@ def build_index (index_path: Path):
             b = aria.model_dump_json(ensure_ascii=False).encode("utf8")
             f.write(b + b"\n")
 
-        print(f'Wrote aria index at { index_path } with a total of {len(arias)} arias at around { math.ceil(os.path.getsize(index_path) / 1024) } kB.')
+        print(
+            f"Wrote aria index at {index_path} with a total of {len(arias)} arias at around {math.ceil(os.path.getsize(index_path) / 1024)} kB."
+        )
 
 
 def load_aria_index() -> list[AriaHeaderModel]:
@@ -186,12 +194,16 @@ def load_aria_index() -> list[AriaHeaderModel]:
     return arias
 
 
-def create_or_load_aria_index (hide_lookup_info: bool = False) -> list[AriaHeaderModel]:
+def create_or_load_aria_index(hide_lookup_info: bool = False) -> list[AriaHeaderModel]:
     # generate aria_index if not already existing
     if not ARIA_INDEX_PATH.is_file():
-        if not hide_lookup_info: print(f'No aria index found. Generating new aria index at { ARIA_INDEX_PATH }.')
+        if not hide_lookup_info:
+            print(
+                f"No aria index found. Generating new aria index at {ARIA_INDEX_PATH}."
+            )
         build_index(ARIA_INDEX_PATH)
     else:
-        if not hide_lookup_info: print(f'Using existing aria index at {ARIA_INDEX_PATH}.')
-    
+        if not hide_lookup_info:
+            print(f"Using existing aria index at {ARIA_INDEX_PATH}.")
+
     return load_aria_index()

@@ -1,14 +1,10 @@
 from collections import defaultdict
 
-from src.corpus.models import AriaHeaderModel
 from src.corpus.build_aria_index import create_or_load_aria_index
+from src.corpus.models import AriaHeaderModel
 
 
-
-
-
-
-def get_arias_grouped_by_composer ():
+def get_arias_grouped_by_composer():
     aria_index = create_or_load_aria_index()
 
     composer_grouping: dict[str, list[AriaHeaderModel]] = defaultdict(list)
@@ -18,17 +14,15 @@ def get_arias_grouped_by_composer ():
 
     return composer_grouping
 
-def get_composer_aria_number ():
+
+def get_composer_aria_number():
     composer_numbers: dict[str, int] = defaultdict(lambda: 0)
 
     for composer, arias in get_arias_grouped_by_composer().items():
-        for aria in arias: composer_numbers[composer] += 1
+        for aria in arias:
+            composer_numbers[composer] += 1
 
     return composer_numbers
-
-
-
-
 
 
 if __name__ == "__main__":

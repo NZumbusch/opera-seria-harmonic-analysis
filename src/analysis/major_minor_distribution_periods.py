@@ -1,7 +1,4 @@
-from collections import defaultdict
 from src.analysis.util import get_aria_mode_from_tsv
-import pandas as pd
-
 from src.corpus.build_period_map import create_or_get_period_map
 
 

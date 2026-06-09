@@ -1,16 +1,14 @@
-from collections import Counter, defaultdict
 import json
+from collections import Counter, defaultdict
 from pathlib import Path
-from typing import TypedDict
-import pandas as pd
+
 from pydantic import BaseModel
 from tqdm import tqdm
 
-from src.analysis.util import CachedAriaChordData, create_aria_chord_count_lookup, get_aria_mode_from_tsv
-from src.corpus.build_aria_index import create_or_load_aria_index
-from src.paths import get_aria_analysis_path
-
-
+from src.analysis.util import (
+    CachedAriaChordData,
+    create_aria_chord_count_lookup,
+)
 
 
 class TimeframeChordData(BaseModel):
@@ -18,12 +16,12 @@ class TimeframeChordData(BaseModel):
     counts: dict[str, int]
 
 
-
-def get_chord_distribution_of_year (
-        year: int, 
-        is_major: bool | None = None
+def get_chord_distribution_of_year(
+    year: int, is_major: bool | None = None
 ) -> TimeframeChordData:
-    lookup: dict[int, CachedAriaChordData] = create_aria_chord_count_lookup(min_year=year, max_year=year)
+    lookup: dict[int, CachedAriaChordData] = create_aria_chord_count_lookup(
+        min_year=year, max_year=year
+    )
 
     chord_counts: dict[str, int] = defaultdict(lambda: 0)
     number = 0
@@ -33,12 +31,8 @@ def get_chord_distribution_of_year (
             for chord, number in data.counts.items():
                 chord_counts[chord] += number
                 number += 1
-    
+
     return TimeframeChordData(n_works=number, counts=chord_counts)
-
-            
-
-
 
 
 def get_chord_distribution_by_sliding_window(
@@ -98,10 +92,11 @@ def get_chord_distribution_by_sliding_window(
             continue
 
         label = f"{start_year}-{end_year}"
-        chord_distributions[label] = TimeframeChordData(n_works=used_arias, counts=dict(total))
+        chord_distributions[label] = TimeframeChordData(
+            n_works=used_arias, counts=dict(total)
+        )
 
     return chord_distributions
-
 
 
 # NDA konform
@@ -173,7 +168,6 @@ def export_public_chord_distribution_windows(
             )
 
     return public_data
-
 
 
 if __name__ == "__main__":

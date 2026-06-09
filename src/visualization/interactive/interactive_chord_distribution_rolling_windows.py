@@ -5,12 +5,13 @@ import plotly.graph_objects as go
 from analysis.chord_distribution.chord_distribution_rolling_time_windows import (
     export_public_chord_distribution_windows,
 )
-from paths import OUTPUT_FIGURES_INTERACTIVE_DIR
+from src.paths import OUTPUT_FIGURES_INTERACTIVE_DIR
 
 
 def draw_interactive_public_chord_distribution_timeline(
     public_data: dict[str, dict[str, int | float]],
-    output_path: Path = OUTPUT_FIGURES_INTERACTIVE_DIR / "interactive_chord_timeline.html",
+    output_path: Path = OUTPUT_FIGURES_INTERACTIVE_DIR
+    / "interactive_chord_timeline.html",
     title: str = "Chord distribution over time",
 ) -> None:
     if not public_data:
@@ -19,9 +20,7 @@ def draw_interactive_public_chord_distribution_timeline(
     window_labels = sorted(public_data.keys(), key=lambda s: int(s.split("-")[0]))
 
     chord_names = [
-        key
-        for key in public_data[window_labels[0]].keys()
-        if key != "n_works"
+        key for key in public_data[window_labels[0]].keys() if key != "n_works"
     ]
 
     fig = go.Figure()

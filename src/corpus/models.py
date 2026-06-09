@@ -1,11 +1,11 @@
 import math
 import re
-
-from pydantic import BaseModel, Field, field_validator
 from typing import Any, Optional
 
+from pydantic import BaseModel, Field, field_validator
 
-class AriaMetaDataModel (BaseModel):
+
+class AriaMetaDataModel(BaseModel):
     id: Optional[int] = None
     ismn: Optional[str] = None
     act_scene: Optional[str] = None
@@ -26,7 +26,8 @@ class AriaMetaDataModel (BaseModel):
     creation_date: Optional[str] = None
     file_name: Optional[str] = None
 
-class AriaHeaderModel (AriaMetaDataModel):
+
+class AriaHeaderModel(AriaMetaDataModel):
     id: Optional[int] = None
     ismn: Optional[str] = None
     act_scene: Optional[str] = None
@@ -46,7 +47,7 @@ class AriaHeaderModel (AriaMetaDataModel):
     creation_date: Optional[str] = None
 
 
-class EmotionLabelModel (BaseModel):
+class EmotionLabelModel(BaseModel):
     opera: str
     label: str
     aria: str
@@ -65,8 +66,17 @@ class EmotionLabelModel (BaseModel):
 
     # convert comma or semicolon seperated strings into lists
     @field_validator(
-        'passion_a', 'passion_b', 'valence', 'valence_2', 'bonora_a', 'bonora_b', 'zhang_a', 'zhang_b', 'jmd_a', 'jmd_b',
-        mode='before'
+        "passion_a",
+        "passion_b",
+        "valence",
+        "valence_2",
+        "bonora_a",
+        "bonora_b",
+        "zhang_a",
+        "zhang_b",
+        "jmd_a",
+        "jmd_b",
+        mode="before",
     )
     @classmethod
     def parse_emotion_list(cls, v: Any) -> list[str]:
@@ -77,25 +87,25 @@ class EmotionLabelModel (BaseModel):
         if isinstance(v, list):
             return [str(item).strip() for item in v if str(item).strip()]
         if isinstance(v, str):
-            parts = re.split(r'[;,]', v)
+            parts = re.split(r"[;,]", v)
             return [part.strip() for part in parts if part.strip()]
         return [str(v).strip()] if str(v).strip() else []
 
 
 # Maps Emotion.xlsx columns to model fields
 emotion_table_model_map = {
-    'Opera': 'opera', 
-    'Label': 'label', 
-    'Aria': 'aria',
-    'Basic_passion': 'basic_passion', 
-    'PassionA': 'passion_a', 
-    'PassionB': 'passion_b',
-    'Valence': 'valence', 
-    'Valence2': 'valence_2',
-    'Bonora A': 'bonora_a', 
-    'Bonora B': 'bonora_b',
-    'Zhang A': 'zhang_a', 
-    'Zhang B': 'zhang_b',
-    'JMD A': 'jmd_a', 
-    'JMD B': 'jmd_b',
+    "Opera": "opera",
+    "Label": "label",
+    "Aria": "aria",
+    "Basic_passion": "basic_passion",
+    "PassionA": "passion_a",
+    "PassionB": "passion_b",
+    "Valence": "valence",
+    "Valence2": "valence_2",
+    "Bonora A": "bonora_a",
+    "Bonora B": "bonora_b",
+    "Zhang A": "zhang_a",
+    "Zhang B": "zhang_b",
+    "JMD A": "jmd_a",
+    "JMD B": "jmd_b",
 }

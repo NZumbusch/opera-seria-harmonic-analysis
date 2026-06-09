@@ -1,12 +1,24 @@
 import multiprocessing as mp
+import re
+import signal
+import warnings
+from functools import partial
 from pathlib import Path
 from typing import Literal
-import re, warnings, ms3, signal
 
-from src.paths import ANALYSIS_OUT_DIR, MS3_EXPANDED_DIR, MS3_LABELS_DIR, MS3_MEASURES_DIR, MS3_NOTES_DIR, MSCX_FOLDER_DIR, get_aria_analysis_path
-from src.corpus.build_aria_index import create_or_load_aria_index, load_aria_index
+import ms3
 from tqdm import tqdm
-from functools import partial
+
+from src.corpus.build_aria_index import create_or_load_aria_index
+from src.paths import (
+    ANALYSIS_OUT_DIR,
+    MS3_EXPANDED_DIR,
+    MS3_LABELS_DIR,
+    MS3_MEASURES_DIR,
+    MS3_NOTES_DIR,
+    MSCX_FOLDER_DIR,
+    get_aria_analysis_path,
+)
 
 
 def process_aria(file_name: str) -> tuple[str, str, str]:
@@ -14,7 +26,7 @@ def process_aria(file_name: str) -> tuple[str, str, str]:
 
     if worker_stop_event is not None and worker_stop_event.is_set():
         return ("stopped", file_name, "stop requested before start")
-    
+
     warnings.filterwarnings(
         "ignore",
         category=FutureWarning,
@@ -26,12 +38,15 @@ def process_aria(file_name: str) -> tuple[str, str, str]:
         message=r".*Downcasting object dtype arrays on \.fillna, \.ffill, \.bfill is deprecated.*",
     )
 
-
-    
     mscx_path = Path(MSCX_FOLDER_DIR) / file_name
 
-    literals: list[Literal['labels', 'expanded', 'measures', 'notes']] = ["notes", "labels", "expanded", "measures"]
-    expected_files = [ get_aria_analysis_path(str(mscx_path), type=t) for t in literals ]
+    literals: list[Literal["labels", "expanded", "measures", "notes"]] = [
+        "notes",
+        "labels",
+        "expanded",
+        "measures",
+    ]
+    expected_files = [get_aria_analysis_path(str(mscx_path), type=t) for t in literals]
 
     if all(path.is_file() for path in expected_files):
         return ("skipped", file_name, "already done")
@@ -68,16 +83,21 @@ def process_aria(file_name: str) -> tuple[str, str, str]:
     except Exception as e:
         return ("failed", file_name, repr(e))
 
+
 worker_stop_event = None
+
+
 def main_shutdown(sig, frame):
     print("Shutting down...")
     global stop_event
     stop_event.set()
 
+
 def init_worker(stop_evt):
     global worker_stop_event
     worker_stop_event = stop_evt
     signal.signal(signal.SIGINT, signal.SIG_IGN)
+
 
 if __name__ == "__main__":
     stop_event = mp.Event()
@@ -90,10 +110,19 @@ if __name__ == "__main__":
     failed_files = []
     skipped_files = []
     file_names = [aria.file_name for aria in arias if aria.file_name]
-    with mp.Pool(processes=6, initializer=init_worker, maxtasksperchild=10, initargs=(stop_event,)) as pool:
+    with mp.Pool(
+        processes=6,
+        initializer=init_worker,
+        maxtasksperchild=10,
+        initargs=(stop_event,),
+    ) as pool:
         try:
             worker_fn = partial(process_aria)
-            for status, file_name, msg in tqdm(pool.imap_unordered(worker_fn, file_names, chunksize=1),total=len(file_names),desc="Parsing and storing arias"):
+            for status, file_name, msg in tqdm(
+                pool.imap_unordered(worker_fn, file_names, chunksize=1),
+                total=len(file_names),
+                desc="Parsing and storing arias",
+            ):
                 if status == "done":
                     done_arias.append(file_name)
                 elif status == "skipped":
@@ -102,7 +131,7 @@ if __name__ == "__main__":
                     missing_files.append(msg)
                 else:
                     failed_files.append((file_name, msg))
-                
+
         except KeyboardInterrupt:
             print("Interrupted, terminating workers...")
             stop_event.set()

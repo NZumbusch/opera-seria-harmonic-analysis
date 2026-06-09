@@ -1,10 +1,16 @@
-from src.analysis.chord_distribution.chord_usage_timeline_loess import get_chord_group_loess_bootstrap_bounds, get_chord_group_loess_series
-from src.paths import OUTPUT_FIGURES_DIR
 import re
 from pathlib import Path
+
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import numpy as np
+
+from src.analysis.chord_distribution.chord_usage_timeline_loess import (
+    get_chord_group_loess_bootstrap_bounds,
+    get_chord_group_loess_series,
+)
+from src.paths import OUTPUT_FIGURES_DIR
+
 
 def draw_chord_group_loess_timeline(
     chord_group: list[str],
@@ -45,7 +51,9 @@ def draw_chord_group_loess_timeline(
     if not chord_group_name:
         chord_group_name = chord_group[0]
 
-    safe_chord_name = re.sub(r"[^A-Za-z0-9_-]+", "_", chord_group_name).strip("_").lower()
+    safe_chord_name = (
+        re.sub(r"[^A-Za-z0-9_-]+", "_", chord_group_name).strip("_").lower()
+    )
     output_path = output_dir / f"loess_timeline_{safe_chord_name}.png"
 
     fig, ax = plt.subplots(figsize=(12, 6))
@@ -106,18 +114,15 @@ def draw_chord_group_loess_timeline(
     return output_path
 
 
-
 if __name__ == "__main__":
     CHORD_GROUPS: dict[str, list[str]] = {
         "galant_predominants": ["ii6", "ii65", "IV", "IV6", "V/V", "vii°/V"],
         "early_classical_cadential": ["I64"],
-        "dominant_family": ["V", "V7", "vii°", "vii°7"]
+        "dominant_family": ["V", "V7", "vii°", "vii°7"],
     }
     draw_chord_group_loess_timeline(
-        chord_group=['IV6', 'I(4)', 'ii7', 'ii%65', 'V7/V', 'vi7', '#viio7', 'V(4)'],
+        chord_group=["IV6", "I(4)", "ii7", "ii%65", "V7/V", "vi7", "#viio7", "V(4)"],
         chord_group_name="Early classical cadential chords",
         frac=0.35,
-        is_major=True
+        is_major=True,
     )
-
-

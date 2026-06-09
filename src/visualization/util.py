@@ -1,10 +1,13 @@
 from collections.abc import Sequence
 
 import matplotlib.pyplot as plt
-from matplotlib import colors as mcolors
 import numpy as np
+from matplotlib import colors as mcolors
 
-def make_sequential_colors(groups: Sequence[str], cmap_name: str = "cividis") -> dict[str, str]:
+
+def make_sequential_colors(
+    groups: Sequence[str], cmap_name: str = "cividis"
+) -> dict[str, str]:
     cmap = plt.get_cmap(cmap_name)
     n = len(groups)
 
@@ -13,15 +16,16 @@ def make_sequential_colors(groups: Sequence[str], cmap_name: str = "cividis") ->
     else:
         values = np.linspace(0.12, 0.88, n)
 
-    return {
-        group: mcolors.to_hex(cmap(v))
-        for group, v in zip(groups, values)
-    }
+    return {group: mcolors.to_hex(cmap(v)) for group, v in zip(groups, values)}
 
-def get_colors_for_groups(groups: Sequence[str], ordered: bool = False) -> dict[str, str]:
+
+def get_colors_for_groups(
+    groups: Sequence[str], ordered: bool = False
+) -> dict[str, str]:
     if ordered:
         return make_sequential_colors(groups, cmap_name="cividis")
     return make_project_colors(groups)
+
 
 def make_project_colors(groups: Sequence[str]) -> dict[str, str]:
     n = len(groups)
@@ -29,7 +33,9 @@ def make_project_colors(groups: Sequence[str]) -> dict[str, str]:
     if n <= len(BASE_PROJECT_COLORS):
         palette = BASE_PROJECT_COLORS[:n]
     else:
-        cmap = mcolors.LinearSegmentedColormap.from_list("project_palette", BASE_PROJECT_COLORS)
+        cmap = mcolors.LinearSegmentedColormap.from_list(
+            "project_palette", BASE_PROJECT_COLORS
+        )
         palette = [mcolors.to_hex(cmap(x)) for x in np.linspace(0, 1, n)]
 
     return dict(zip(groups, palette))
@@ -46,26 +52,3 @@ BASE_PROJECT_COLORS = [
     "#d1495b",  # muted red
 ]
 PERIOD_NUMBER = 8
-
-
-
-def get_aria_total_duration(file_name: str) -> float:
-    measures_path = get_aria_analysis_path(file_name, "measures")
-    if not measures_path.exists():
-        return 0.0
-    
-    with open(measures_path, mode='r', encoding='utf-8') as f:
-        # Use DictReader to locate the 'quarterbeats' column
-        reader = csv.DictReader(f, delimiter='\t')
-        rows = list(reader)
-        if not rows:
-            return 0.0
-        
-        last_row = rows[-1]
-        raw_qb = last_row.get("quarterbeats", "0")
-        
-        # Handle fractions like "169/2" or simple floats
-        try:
-            return float(Fraction(raw_qb)) + float(last_row.get("duration_qb", 0))
-        except (ValueError, ZeroDivisionError):
-            return 0.0
