@@ -10,7 +10,7 @@ The project uses computational methods to analyze harmonic patterns, schemata us
 
 The primary dataset used in this study is the **DIDONE corpus**, an ERC-funded project at the Instituto Complutense de Ciencias Musicales (ICCM). Due to a Non-Disclosure Agreement (NDA), the raw musical scores (`.mscx`) and processed data (`.tsv`) from the DIDONE corpus **cannot be distributed in this repository**.
 
-Researchers interested in replicating the results or using the corpus should contact the [Instituto Complutense de Ciencias Musicales (ICCM)](https://iccmu.es/) to request access to the DIDONE dataset.
+Researchers interested in replicating the results or using the corpus should contact the [DIDONE Project Team](https://didone.eu/) to request access to the dataset.
 
 The code provided here can be used to process similar datasets if they follow the MuseScore format or can be converted to the intermediate TSV format used by the pipeline.
 

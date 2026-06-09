@@ -11,6 +11,8 @@ data/output/*
 .venv/
 .env
 
+*.bcf
+*.synctex.gz
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
