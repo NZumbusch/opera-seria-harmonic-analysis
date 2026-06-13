@@ -1,3 +1,5 @@
+from src.analysis.schemata.skipgrams import Skipgram
+from src.analysis.schemata.pre_process import ContrapuntalPair
 from pydantic import BaseModel
 
 
@@ -123,3 +125,48 @@ SCHEMA_LIBRARY = {
         ],
     ),
 }
+
+
+
+
+class SchemaMatch(BaseModel):
+    name: str
+    start_time: float
+    end_time: float
+    schema_definition: list[ContrapuntalPair]
+
+def match_schema_to_skipgram (skipgram: list[ContrapuntalPair]) -> SchemaMatch | None:
+    for _, schema in SCHEMA_LIBRARY.items():
+            if len(skipgram) != len(schema.sections):
+                continue
+
+            is_match = True
+            for i, pair in enumerate(skipgram):
+                t_bass = (
+                    schema.sections[i].bass_minor
+                    if pair.is_minor
+                    else schema.sections[i].bass_major
+                )
+                t_sop = (
+                    schema.sections[i].soprano_minor
+                    if pair.is_minor
+                    else schema.sections[i].soprano_major
+                )
+                if pair.bass_sd != t_bass or pair.soprano_sd != t_sop:
+                    is_match = False
+                    break
+
+            if is_match:
+                # context dependant matching
+                if schema.name in ["Monte", "Fonte"] and len(skipgram) >= 3:
+                    bass_start_midi = skipgram[0].bass.midi
+                    bass_sequence_midi = skipgram[2].bass.midi
+                    midi_delta = bass_sequence_midi - bass_start_midi
+
+                    if schema.name == "Monte" and midi_delta <= 0:
+                        continue
+                    if schema.name == "Fonte" and midi_delta >= 0:
+                        continue
+
+                return SchemaMatch(name=schema.name, start_time=skipgram[0].onset_time, end_time=skipgram[-1].center_time, schema_definition=skipgram )
+    return None

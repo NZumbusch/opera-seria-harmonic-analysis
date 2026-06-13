@@ -1,5 +1,7 @@
 import bisect
 import csv
+import heapq
+import itertools
 import re
 from pathlib import Path
 from typing import Iterator, Tuple
@@ -65,7 +67,7 @@ def load_harmony_map(harmony_tsv_path: str | Path) -> list[tuple[float, int, boo
                         True if row["globalkey_is_minor"] == "1" else False,
                         row["localkey"],
                     ),
-                    True if row["globalkey_is_minor"] == "1" else False,
+                    True if row["localkey_is_minor"] == "1" else False,
                 )
             )
 
@@ -98,18 +100,29 @@ def generate_fuzzy_pairs(
 ) -> Iterator[ContrapuntalPair]:
     """
     Pairs bass and soprano notes using a sliding window.
-    Assumes lists are sorted by onset time.
+    Yields pairs strictly chronologically by their earliest onset time.
     """
     soprano_idx = 0
     num_sopranos = len(soprano_notes)
     harmony_map = load_harmony_map(harmony_file)
     harmony_times = [h[0] for h in harmony_map]
 
+    # Priority queue to buffer pairs until they are chronologically "safe" to yield.
+    pq = []
+    tie_breaker = itertools.count() 
+
     for bass in bass_notes:
         if bass.duration < min_duration:
             continue
         if grid_size and (bass.onset % grid_size != 0):
             continue
+
+        # Earliest possible onset for any pair created from this or future bass notes
+        safe_time = bass.onset - max_sync_distance
+
+        # Yield pairs from the queue that are guaranteed to be chronological
+        while pq and pq[0][0] < safe_time:
+            yield heapq.heappop(pq)[4]
 
         # Move index forward
         while soprano_idx < num_sopranos and soprano_notes[soprano_idx].onset < (
@@ -134,9 +147,16 @@ def generate_fuzzy_pairs(
                 bass.onset, harmony_map, harmony_times
             )
 
-            yield ContrapuntalPair(
+            pair = ContrapuntalPair(
                 bass=bass, soprano=soprano, tonic=current_tonic, is_minor=is_minor
             )
+            
+            pair_onset = min(bass.onset, soprano.onset)
+            heapq.heappush(pq, (pair_onset, bass.onset, soprano.onset, next(tie_breaker), pair)) # (sort_key, tie_breaker, item)
+
+    # flush heap in chronological order
+    while pq:
+        yield heapq.heappop(pq)[4]
 
 
 def strip_octave(note_name: str) -> str:
@@ -199,6 +219,14 @@ def extract_outer_voices(
 
             soprano_notes.append(soprano)
             bass_notes.append(bass)
+
+    def deduplicate_and_sort(notes: list[NoteInfo]) -> list[NoteInfo]:
+        # Deduplicate based on unique note signatures to avoid repeated processing
+        unique_notes = {(n.onset, n.midi, n.duration): n for n in notes}.values()
+        return sorted(unique_notes, key=lambda n: n.onset)
+
+    soprano_notes = deduplicate_and_sort(soprano_notes)
+    bass_notes = deduplicate_and_sort(bass_notes)
 
     return (soprano_notes, bass_notes)
 

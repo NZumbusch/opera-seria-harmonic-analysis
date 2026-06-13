@@ -136,7 +136,7 @@ def draw_fpca_clusters_timeline(
         axes[row * ncols].set_ylabel("Standardized Frequency (Z-Score)")
 
     fig.suptitle(
-        f"FPCA Historical Trend Groupings ({mode_label})",
+        f"FPCA Historical Trend Grouping ({mode_label})",
         fontsize=14,
         fontweight="bold",
         y=0.98,

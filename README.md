@@ -1,6 +1,6 @@
 # Opera Seria Harmonic Analysis
 
-This repository contains the source code for the harmonic analysis of eighteenth-century opera seria arias, as presented in the paper "Discovering trends in historical aria data using loess smoothing, functional component analysis and generalized skipgrams" (working title, see `papers/overview.tex`).
+This repository contains the source code for the harmonic analysis of eighteenth-century opera seria arias, as presented in the paper "Discovering trends in historical aria chord data using loess smoothing and functional principal component analysis".
 
 ## Project Overview
 
@@ -75,8 +75,8 @@ Generate plots and interactive figures:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
 ## Citation
 
-If you use this code or the findings in your research, please cite this repository or the accompaning paper.
+If you use this code or the findings in your research, please cite this repository or the accompanying paper.

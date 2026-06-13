@@ -45,9 +45,10 @@ def skipgram(
     input: Iterator[T],
     k: float,
     n: int,
+    er: Callable[[list[T]], bool],
     c: Callable[[T, T], float],
     p: Callable[[PathNode], bool] | None = None,
-) -> Iterator[Skipgram]:
+) -> Iterator[Skipgram[T]]:
     """General skipgram implementation after Finkensiep, Neuwirth, Rohrmeier 2018.
 
     Args:
@@ -89,10 +90,15 @@ def skipgram(
             if p and not p(node):
                 continue
 
-            if node.length == n:
+            is_early_match = er(node.to_list())
+            
+            # emit if max length OR an early match
+            if node.length == n or is_early_match:
                 sg = Skipgram(cost=node.cost, contents=node.to_list())
                 heapq.heappush(output, (event_id, tb, sg))
-            else:
+            
+            # allow extension if under max length n
+            if node.length < n:
                 pfxs.append((event_id, tb, node))
 
     # returns last outputs in order

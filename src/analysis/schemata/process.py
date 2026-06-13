@@ -8,7 +8,7 @@ from src.analysis.schemata.pre_process import (
     ContrapuntalPair,
     get_aria_outer_voice_pairs_fuzzy,
 )
-from src.analysis.schemata.schemata import SCHEMA_LIBRARY
+from src.analysis.schemata.schemata import SCHEMA_LIBRARY, SchemaMatch, match_schema_to_skipgram
 from src.analysis.schemata.skipgrams import PathNode, Skipgram, skipgram
 from src.analysis.util import INT_TO_NOTE
 from src.corpus.build_aria_index import create_or_load_aria_index
@@ -26,14 +26,15 @@ def to_scale_degree_vector(pair: ContrapuntalPair, key_tonic: int) -> dict:
 
 
 # Parameter functions
-def cost_function(g1: ContrapuntalPair, g2: ContrapuntalPair) -> float:
-    return max(0.0, g2.center_time - g1.center_time)
-
-
 def cost_function_relative(
     g1: ContrapuntalPair, g2: ContrapuntalPair, k: float
 ) -> float:
+    # filter out non sequential pairs
+    if (g1.soprano.onset > g2.bass.onset or g1.bass.onset > g2.soprano.onset):
+        return k + 1
+    
     distance = abs(g2.center_time - g1.center_time)
+        
     return 0 if distance <= k else k + 1
 
 
@@ -92,26 +93,25 @@ def stream_deduplicate_pairs(
             seen.add(key)
             yield pair
 
-
 def stream_deduplicate_matches(
-    match_stream: Iterator[dict], time_tolerance: float = 2.0, max_skip: float = 4.0
-) -> Iterator[dict]:
+    match_stream: Iterator[SchemaMatch], time_tolerance: float = 2.0, max_skip: float = 4.0
+) -> Iterator[SchemaMatch]:
     """
     Deduplicates schema micro-variations by dropping incoming matches if they
     share the SAME name AND either a similar start_time OR a similar end_time.
     """
-    active_buffer: list[dict] = []
-    recently_emitted: list[dict] = []
+    active_buffer: list[SchemaMatch] = []
+    recently_emitted: list[SchemaMatch] = []
 
     for new_match in match_stream:
-        current_time = new_match["end_time"]
+        current_time = new_match.end_time
 
         flush_threshold = current_time - max_skip - time_tolerance
-        active_buffer.sort(key=lambda x: x["start_time"])
+        active_buffer.sort(key=lambda x: x.start_time)
 
-        flushed = [item for item in active_buffer if item["end_time"] < flush_threshold]
+        flushed = [item for item in active_buffer if item.end_time < flush_threshold]
         active_buffer = [
-            item for item in active_buffer if item["end_time"] >= flush_threshold
+            item for item in active_buffer if item.end_time >= flush_threshold
         ]
 
         for item in flushed:
@@ -120,18 +120,18 @@ def stream_deduplicate_matches(
 
         history_threshold = current_time - (max_skip * 2) - time_tolerance
         recently_emitted = [
-            item for item in recently_emitted if item["end_time"] >= history_threshold
+            item for item in recently_emitted if item.end_time >= history_threshold
         ]
 
         # Duplicate Evaluation
         is_duplicate = False
         for item in active_buffer + recently_emitted:
-            if item["name"] == new_match["name"]:
+            if item.name == new_match.name:
                 start_close = (
-                    abs(item["start_time"] - new_match["start_time"]) <= time_tolerance
+                    abs(item.start_time - new_match.start_time) <= time_tolerance
                 )
                 end_close = (
-                    abs(item["end_time"] - new_match["end_time"]) <= time_tolerance
+                    abs(item.end_time - new_match.end_time) <= time_tolerance
                 )
 
                 if start_close or end_close:
@@ -141,61 +141,26 @@ def stream_deduplicate_matches(
         if not is_duplicate:
             active_buffer.append(new_match)
 
-    active_buffer.sort(key=lambda x: x["start_time"])
+    active_buffer.sort(key=lambda x: x.start_time)
     for item in active_buffer:
         yield item
 
 
+
 def match_schemata_lazy(
     skipgram_stream: Iterator[Skipgram[ContrapuntalPair]],
-) -> Iterator[dict]:
+) -> Iterator[SchemaMatch]:
     """Identifies musical schemata from raw skipgrams lazily."""
-    for schema in skipgram_stream:
-        for _, defn in SCHEMA_LIBRARY.items():
-            if len(schema.contents) != len(defn.sections):
-                continue
+    for skipgram in skipgram_stream:
+        r = match_schema_to_skipgram(skipgram.contents)
 
-            is_match = True
-            for i, pair in enumerate(schema.contents):
-                t_bass = (
-                    defn.sections[i].bass_minor
-                    if pair.is_minor
-                    else defn.sections[i].bass_major
-                )
-                t_sop = (
-                    defn.sections[i].soprano_minor
-                    if pair.is_minor
-                    else defn.sections[i].soprano_major
-                )
-                if pair.bass_sd != t_bass or pair.soprano_sd != t_sop:
-                    is_match = False
-                    break
-
-            if is_match:
-                # context dependant matching
-                if defn.name in ["Monte", "Fonte"] and len(schema.contents) >= 3:
-                    bass_start_midi = schema.contents[0].bass.midi
-                    bass_sequence_midi = schema.contents[2].bass.midi
-                    midi_delta = bass_sequence_midi - bass_start_midi
-
-                    if defn.name == "Monte" and midi_delta <= 0:
-                        continue
-                    if defn.name == "Fonte" and midi_delta >= 0:
-                        continue
-
-                yield {
-                    "name": defn.name,
-                    "start_time": schema.contents[0].onset_time,
-                    "end_time": schema.contents[-1].center_time,
-                    "schema": schema,
-                }
-                break
+        if (r): yield r
+        else: continue # no schemata found
 
 
 def find_schemata(
     file_name: str,
     max_sync_distance: int = 2,
-    combinations_per_schema: int = 4,
     max_schema_time_skip: float = 4.0,
     print_schemata=False,
 ):
@@ -210,7 +175,8 @@ def find_schemata(
     raw_skipgrams: Iterator[Skipgram[ContrapuntalPair]] = skipgram(
         input=clean_pair_stream,
         k=max_schema_time_skip,
-        n=combinations_per_schema,
+        n=max([len(schema.sections) for schema in SCHEMA_LIBRARY.values()]),
+        er=lambda s: match_schema_to_skipgram(s) is not None,
         c=lambda a, b: cost_function_relative(a, b, k=max_schema_time_skip),
         p=predicate_schemata,
     )
@@ -240,23 +206,23 @@ def find_schemata(
         writer.writerow(header)
 
         for match in final_schemata_stream:
-            schema: Skipgram[ContrapuntalPair] = match["schema"]
-            row = [match["name"]]
+            schema: list[ContrapuntalPair] = match.schema_definition
+            row = [match.name]
 
             for i in range(max_slots):
-                if i < len(schema.contents):
-                    stage = schema.contents[i]
+                if i < len(schema):
+                    stage = schema[i]
 
                     bass_note_name = INT_TO_NOTE[stage.bass.midi % 12]
                     sop_note_name = INT_TO_NOTE[stage.soprano.midi % 12]
 
                     row.extend(
                         [
-                            stage.bass.onset,
-                            stage.bass_sd,
+                            str(stage.bass.onset),
+                            str(stage.bass_sd),
                             bass_note_name,
-                            stage.soprano.onset,
-                            stage.soprano_sd,
+                            str(stage.soprano.onset),
+                            str(stage.soprano_sd),
                             sop_note_name,
                         ]
                     )
@@ -269,11 +235,11 @@ def find_schemata(
                 schema_string = " -> ".join(
                     [
                         f"{stage.bass_sd} ({stage.bass.onset})-{stage.soprano_sd}({stage.soprano.onset})"
-                        for stage in schema.contents
+                        for stage in schema
                     ]
                 )
                 print(
-                    f"[{Path(file_name).stem}] Found {match['name']} ({match['start_time']} to {match['end_time']}): {schema_string}"
+                    f"[{Path(file_name).stem}] Found {match.name} ({match.start_time} to {match.end_time}): {schema_string}"
                 )
 
 
